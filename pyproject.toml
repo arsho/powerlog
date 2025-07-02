@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "powerlog"
+version = "0.0.1"
+dependencies = []
+requires-python = ">=3.8"
+authors = [
+  {name = "Ahmedur Rahman Shovon", email = "shovon.sylhet@gmail.com"},
+]
+description = "GPU power log"
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta"
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+keywords = ["powerlog", "gpupower", "energy", "power analysis", "power log"]
+
+[project.urls]
+Homepage = "https://github.com/arsho/powerlog"
+Issues = "https://github.com/arsho/powerlog/issues"
