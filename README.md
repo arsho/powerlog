@@ -5,8 +5,6 @@
 
 **Powerlog** is a lightweight command-line tool and Python package to profile Nvidia GPU power consumption during the execution of a command-line program. It uses `nvidia-smi` to sample power draw at regular intervals and reports total energy usage, average power, and min/max readings.
 
-## 
-
 ## Features
 
 * Measures real-time GPU power draw using `nvidia-smi`
@@ -23,6 +21,9 @@
 
 Requires Python 3.6+ and NVIDIA's `nvidia-smi` available in your system PATH.
 
+Project page at the Python Package Index (PyPI): [https://pypi.org/project/powerlog/](https://pypi.org/project/powerlog/)
+
+Install with pip:
 ```bash
 pip install powerlog
 ```
@@ -74,20 +75,50 @@ Timestamp (ns),Power Draw (W)
 * NVIDIA GPU with drivers and `nvidia-smi` tool
 
 ## How power and energy are calculated?
-**Power log collection:**  
+### Power log collection  
 Powerlog uses `nvidia-smi` to measure GPU power draw at regular intervals (default: every 0.1 seconds). The Python wrapper script automatically runs this measurement loop from the start to the end of your program.
 
-**Total energy consumption ($E$) in Joules is computed as:**
+## Total energy consumption computation
 
+Total energy ***E*** (in Joules) is computed as
 $$
 E = \sum_{i=1}^N P_i \cdot \Delta t_i
 $$
 
-Where:
+where:
 
 - **N**: total number of sampling intervals  
 - **P<sub>i</sub>**: GPU power draw (Watts) at interval *i*  
 - **Δt<sub>i</sub>**: elapsed time (seconds) between sample *i* and sample *i-1*
+
+## Development
+
+### Local Testing
+
+To test Powerlog locally during development (before releasing to PyPI), you can install your package in "editable" mode:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+### Publishing to PyPI
+When the package is ready to publish (or update) Powerlog on PyPI, use the following commands:
+
+```
+python -m pip install --upgrade build
+python3 -m build
+python3 -m pip install --upgrade twine
+twine upload dist/*
+```
+This will build the distribution files (.tar.gz and .whl) and upload them to PyPI.
+
+It requires API token for authentication.
+
+### Changelog
+
+See the [Changelog.md](Changelog.md) file in this repository for version history and release notes.
 
 ## License
 
@@ -95,4 +126,5 @@ MIT License
 
 ## Acknowledgments
 
-Developed as part of GPU power-efficiency profiling experiments in Datalog-based engines.
+- Developed as part of GPU power-efficiency profiling experiments in Datalog-based engines.
+- Inspired by the [EUMaster4HPC](https://eumaster4hpc.uni.lu/) 
