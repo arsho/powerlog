@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "powerlog"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = []
 requires-python = ">=3.8"
 authors = [
@@ -20,7 +20,8 @@ classifiers = [
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
 keywords = ["powerlog", "gpupower", "energy", "power analysis", "power log"]
-
+[project.scripts]
+powerlog = "powerlog.core:main"
 [project.urls]
 Homepage = "https://github.com/arsho/powerlog"
 Issues = "https://github.com/arsho/powerlog/issues"
