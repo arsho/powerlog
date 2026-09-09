@@ -9,16 +9,6 @@ dependencies = []
 requires-python = ">=3.8"
 authors = [
   {name = "Ahmedur Rahman Shovon", email = "ashovon@anl.gov"},
-  {name = "Yihao Sun", email = "yihao.sun@usu.edu"},
-  {name = "Zhiling Lan", email = "zlan@uic.edu"},
-  {name = "Swann Perarnau", email = "swann@anl.gov"},
-  {name = "Thomas Gilray", email = "thomas.gilray@wsu.edu"},
-  {name = "Kristopher Micinski", email = "kkmicins@syr.edu"},
-  {name = "Michael E. Papka", email = "papka@uic.edu"},
-  {name = "Sidharth Kumar", email = "sidharth@uic.edu"},
-]
-maintainers = [
-  {name = "Ahmedur Rahman Shovon", email = "ashovon@anl.gov"},
 ]
 description = "Measure the CPU and GPU energy consumed by an unmodified program"
 readme = "README.md"
