@@ -1,130 +1,230 @@
+<div align="center">
+
 # Powerlog
 
-[![PyPI version](https://badge.fury.io/py/powerlog.svg)](https://pypi.org/project/powerlog/)
+<p align="center">
+  <a href="https://pypi.org/project/powerlog/">
+  <img src="https://img.shields.io/pypi/v/powerlog?color=blue" alt="PyPI version">
+  </a>
+  <a href="https://pypi.org/project/powerlog/">
+  <img src="https://img.shields.io/pypi/pyversions/powerlog" alt="Python versions">
+  </a>
+  <a href="https://powerlog.readthedocs.io/">
+  <img src="https://img.shields.io/readthedocs/powerlog" alt="Documentation">
+  </a>
+  <a href="https://opensource.org/licenses/MIT">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
+  </a>
+</p>
 
+<p>
+A lightweight harness that measures the CPU and GPU energy consumed by an
+unmodified program.
+</p>
 
-**Powerlog** is a lightweight command-line tool and Python package to profile Nvidia GPU power consumption during the execution of a command-line program. It uses `nvidia-smi` to sample power draw at regular intervals and reports total energy usage, average power, and min/max readings.
+[Overview](#overview) -
+[Features](#features) -
+[Dependencies](#dependencies) -
+[Installation](#installation) -
+[Usage](#usage) -
+[Documentation](#documentation) -
+[Examples](#examples) -
+[Contributing](#contributing) -
+[References](#references) -
+[License](#license) -
+[Citation](#citation)
+
+</div>
+
+## Overview
+
+Powerlog runs a command and reports how much energy it used, reading CPU power
+and GPU power at the same instants so the two can be compared and added up.
 
 ## Features
 
-* Measures real-time GPU power draw using `nvidia-smi`
-* Computes:
+- **Heterogeneous** -- reports CPU and GPU energy separately and combined
+- **Portable** -- NVIDIA (NVML), AMD (ROCm SMI), Intel/SYCL (Level Zero), CPU RAPL
+- **Non-intrusive** -- runs unmodified binaries, no recompilation
+- **Whole-application** -- covers I/O, transfers, kernel launches, synchronization
+- **Low overhead** -- samples from a separate process, writes results at exit
+- **Multi-GPU** -- one power column per device on a node
+- **Simple** -- a single command, no root on most systems
+- **Robust** -- domains it cannot read are marked `n/a` instead of failing
+- **Scriptable** -- CSV output, and the program's exit status is preserved
 
-  * Total runtime
-  * Total energy consumed (in Joules)
-  * Average (sampled and timed), min, and max power (Watts)
-* Outputs both summary and raw samples as CSV
-* Simple CLI interface
-* Reports Avg Power Sampled (mean of all readings) and Avg Power Timed (energy divided by total time)
+## Dependencies
+
+Python 3.8 or newer. No Python packages are required -- Powerlog uses only the
+standard library.
+
+Everything else is optional and detected at runtime. Install only what matches
+your hardware; whatever is missing is reported as `n/a`.
+
+| Domain | Provided by | Requirement |
+| ------ | ----------- | ----------- |
+| NVIDIA GPU | NVIDIA driver | `nvidia-smi` on `PATH` |
+| AMD GPU | ROCm, or the `amdgpu` kernel driver | `rocm-smi`/`amd-smi` on `PATH`, else readable `/sys/class/drm/card*/device/hwmon` |
+| Intel GPU | Intel XPU Manager / oneAPI | `xpu-smi` on `PATH` |
+| CPU | Linux RAPL | readable `/sys/class/powercap`, or `perf` |
+
+CPU measurement is Linux only. If it is unavailable, enable one of:
+
+```bash
+sudo chmod -R a+r /sys/class/powercap      # powercap sysfs
+sudo sysctl kernel.perf_event_paranoid=-1  # perf
+```
+
+Powerlog measures the node it runs on. It does not aggregate across nodes.
 
 ## Installation
 
-Requires Python 3.6+ and NVIDIA's `nvidia-smi` available in your system PATH.
-
-Project page at the Python Package Index (PyPI): [https://pypi.org/project/powerlog/](https://pypi.org/project/powerlog/)
-
-Install with pip:
 ```bash
 pip install powerlog
 ```
 
+### From this repository
+
+```bash
+git clone https://github.com/arsho/powerlog.git
+pip install -e powerlog
+```
+
+`-e` installs in editable mode, so the `powerlog` command tracks your working
+copy. To run it without installing at all, use
+`PYTHONPATH=powerlog/src python -m powerlog ...`.
+
+Check which power sources are visible on your machine:
+
+```bash
+powerlog --list-backends
+```
+
 ## Usage
 
-```bash
-powerlog --output power_report.csv --gpu 1 ./my_gpu_program arg1 arg2
-```
-
-### CLI Options
-
-| Argument     | Description                                 |
-| ------------ | ------------------------------------------- |
-| `--output`   | Base name for the output CSV files          |
-| `--gpu`      | Number of GPUs to monitor (default: 1)      |
-| `cmd`        | Command and arguments to run and profile    |
-
-## Output
-
-If `--output power.csv` is specified:
-
-* `power.csv`: Summary of runtime, energy, and power stats
-* `power_samples.csv`: Raw timestamped power draw samples
-
-## Example
+Measure a program. CPU and GPU are both measured by default:
 
 ```bash
-powerlog --output matrix_power.csv --gpu 1 nvidia-smi
+powerlog ./my_program --arg value
 ```
 
-This will generate `matrix_power.csv` and `matrix_power_samples.csv`
-
-Demo content of `matrix_power.csv`:
-```text
-Total Time (s),Total Energy (J),Avg Power Sampled (W),Avg Power Timed (W),Min Power Sampled (W),Max Power Sampled (W)
-0.1001,1.2856,12.8400,12.8400,12.84,12.84
+```
+================================================================
+                    POWERLOG ENERGY SUMMARY
+================================================================
+Command                 ./my_program --arg value
+Runtime (s)             12.4180
+CPU                     AMD EPYC 7532 32-Core Processor
+GPU                     NVIDIA A100-PCIE-40GB
+----------------------------------------------------------------
+Domain            Energy (J)   Share (%)   Avg Power (W)
+----------------------------------------------------------------
+CPU                 962.4013       31.06         77.5013
+GPU                2136.7742       68.94        172.0700
+----------------------------------------------------------------
+TOTAL              3099.1755
+EDP (J*s)         38485.5262
+----------------------------------------------------------------
+Samples                 124
+CPU source              RAPL powercap sysfs, 2 package domain(s)
+GPU source              NVML (nvidia-smi), 1 device(s)
+================================================================
 ```
 
-Demo content of `matrix_power_samples.csv`:
-```text
-Timestamp (ns),Power Draw (W)
-1752198440220994393,12.84
-```
+Two CSVs are written: a one-row summary and the full power trace.
 
-## Dependencies
-
-* Python standard library (`subprocess`, `argparse`, `time`, `csv`)
-* NVIDIA GPU with drivers and `nvidia-smi` tool
-
-## How power and energy are calculated?
-### Power log collection  
-Powerlog uses `nvidia-smi` to measure GPU power draw at regular intervals (default: every 0.1 seconds). The Python wrapper script automatically runs this measurement loop from the start to the end of your program.
-
-## Total energy consumption computation
-
-Total energy ***E*** (in Joules) is computed as
-$$
-E = \sum_{i=1}^N P_i \cdot \Delta t_i
-$$
-
-where:
-
-- **N**: total number of sampling intervals  
-- **P<sub>i</sub>**: GPU power draw (Watts) at interval *i*  
-- **Δt<sub>i</sub>**: elapsed time (seconds) between sample *i* and sample *i-1*
-
-## Development
-
-### Local Testing
-
-To test Powerlog locally during development (before releasing to PyPI), you can install your package in "editable" mode:
+### Choosing what to measure
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
+powerlog ./my_program                    # CPU and GPU (default)
+powerlog -m gpu ./my_program             # GPU only
+powerlog -m cpu ./my_program             # CPU only
 ```
 
-### Publishing to PyPI
-When the package is ready to publish (or update) Powerlog on PyPI, use the following commands:
+### Other options
 
+```bash
+powerlog -o run.csv ./my_program         # name the output (default: powerlog_output.csv)
+powerlog --no-csv ./my_program           # print only, write nothing
+powerlog --gpu 4 ./my_program            # sum only the first 4 GPUs
+powerlog --interval 0.05 ./my_program    # sample every 50 ms
+powerlog --list-backends                 # show detected power sources
 ```
-python -m pip install --upgrade build
-python3 -m build
-python3 -m pip install --upgrade twine
-twine upload dist/*
+
+Powerlog exits with the profiled program's exit status. See the
+[command line reference](https://powerlog.readthedocs.io/en/latest/cli.html) for
+the full list.
+
+Power sources are detected automatically. On a machine with GPUs from more than
+one vendor, NVIDIA is preferred.
+
+## Documentation
+
+Full documentation is at **[powerlog.readthedocs.io](https://powerlog.readthedocs.io/)**:
+
+- [Installation](https://powerlog.readthedocs.io/en/latest/installation.html)
+- [Quick Start](https://powerlog.readthedocs.io/en/latest/quickstart.html)
+- [Command Line Reference](https://powerlog.readthedocs.io/en/latest/cli.html)
+- [Python API Reference](https://powerlog.readthedocs.io/en/latest/api.html)
+- [Backends](https://powerlog.readthedocs.io/en/latest/backends.html)
+- [Methodology](https://powerlog.readthedocs.io/en/latest/methodology.html)
+
+## Examples
+
+[`apps/`](apps/) contains ready-to-run GPU programs spanning several performance
+regimes -- `vecadd`, `matmul`, `gemm`, `reduction`, `stencil`, `nbody`, plus SYCL
+ports. See [apps/README.md](apps/README.md) for building and profiling them.
+
+```bash
+cd apps && make
+powerlog ./bin/matmul 2048
 ```
-This will build the distribution files (.tar.gz and .whl) and upload them to PyPI.
 
-It requires API token for authentication.
+[`datalog-engine-comparison/`](datalog-engine-comparison/) is a larger case study
+that uses Powerlog to compare the energy behaviour of five GPU-accelerated
+Datalog engines -- [MNMGDatalog](https://github.com/harp-lab/MNMGDatalog),
+[GPULog](https://github.com/harp-lab/gdlog),
+[BJoin](https://github.com/harp-lab/batch_joins), INLJoin and
+[cuDF](https://github.com/rapidsai/cudf) -- across two recursive queries and
+seven graphs. It ships the harness, the analysis scripts and the collected
+results; the engines themselves are cloned from their own repositories.
 
-### Changelog
+## Contributing
 
-See the [Changelog.md](Changelog.md) file in this repository for version history and release notes.
+Questions, bug reports and patches are all welcome on the
+[issue tracker](https://github.com/arsho/powerlog/issues).
+
+For code changes, open an issue first to discuss anything substantial, then send
+a pull request against `main`. Adding support for another power source means
+subclassing `PowerSampler` or `EnergyCounter` in `src/powerlog/backends.py`; see
+[Backends](https://powerlog.readthedocs.io/en/latest/backends.html).
+
+Release history is in [Changelog.md](Changelog.md).
+
+## References
+
+The power and energy interfaces Powerlog reads from:
+
+- [NVIDIA Management Library (NVML)](https://developer.nvidia.com/management-library-nvml)
+- [ROCm SMI](https://github.com/ROCm/rocm_smi_lib)
+- [Intel XPU Manager](https://github.com/intel/xpumanager)
+- [Linux powercap / RAPL](https://docs.kernel.org/power/powercap/powercap.html)
+- [perf-stat](https://man7.org/linux/man-pages/man1/perf-stat.1.html)
 
 ## License
 
-MIT License
+Powerlog is released under the MIT License. See [LICENSE](LICENSE).
 
-## Acknowledgments
+## Citation
 
-- Developed as part of GPU power-efficiency profiling experiments in Datalog-based engines.
-- Inspired by the [EUMaster4HPC](https://eumaster4hpc.uni.lu/) 
+If you use Powerlog in your work, please cite:
+
+```bibtex
+@inproceedings{shovon2026heterogeneous,
+  title={Heterogeneous Energy Characterization of GPU-Powered Datalog Engines},
+  author={Shovon, Ahmedur Rahman and Sun, Yihao and Lan, Zhiling and Perarnau, Swann and Gilray, Thomas and Micinski, Kristopher and Papka, Michael E and Kumar, Sidharth},
+  booktitle={2026 IEEE/ACM Workshop on Energy Efficiency with Sustainable Performance: Techniques, Tools, and Best Practices (EESP)},
+  year={2026},
+  organization={IEEE}
+}
+```
