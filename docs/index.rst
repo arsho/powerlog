@@ -4,10 +4,11 @@ Powerlog
 A lightweight harness that measures the CPU and GPU energy consumed by an
 unmodified program.
 
-Powerlog runs your program as a subprocess and samples CPU and GPU power in
-lockstep until it exits, then reports a per-domain energy breakdown. It needs no
-source instrumentation, no profiler integration and no root access on most
-systems.
+Powerlog captures *whole-application* energy with no source instrumentation.
+Rather than adding a new sensor, it composes the standard counters the platform
+already exposes: it launches the target as a subprocess and samples two sources
+in lockstep -- per-GPU power from NVML and CPU-package power from RAPL --
+time-stamping each pair against the same wall clock on a 100 ms interval.
 
 .. code-block:: bash
 
@@ -24,10 +25,13 @@ systems.
 Why whole-application measurement
 ---------------------------------
 
-Because Powerlog wraps the entire process, the measurement covers everything the
-program does: I/O, host-device transfers, kernel launches, synchronization and
-iterative solves. Per-kernel profilers miss the energy spent between kernels,
-which on many real workloads is a large share of the total.
+Because Powerlog profiles end to end, the trace spans I/O, host-device transfers,
+kernel launches, synchronization and fixed-point iterations, capturing the energy
+that per-kernel tools miss.
+
+Measuring only the GPU is not enough either. The CPU package is frequently a
+large and workload-dependent share of total energy, so GPU-only accounting can
+misrank implementations and understate total energy by up to 2x.
 
 Supported hardware
 ------------------

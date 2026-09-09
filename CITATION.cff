@@ -32,8 +32,17 @@ preferred-citation:
   title: >-
     Heterogeneous Energy Characterization of GPU-Powered Datalog Engines
   collection-title: >-
-    SC26-W: Workshops of the International Conference for High Performance
-    Computing, Networking, Storage and Analysis
+    2026 IEEE/ACM Workshop on Energy Efficiency with Sustainable Performance:
+    Techniques, Tools, and Best Practices (EESP)
+  conference:
+    name: >-
+      3rd International Workshop on Energy Efficiency with Sustainable
+      Performance: Techniques, Tools, and Best Practices (EESP), held with SC26
+    city: Chicago
+    region: Illinois
+    country: US
+  publisher:
+    name: IEEE
   year: 2026
   location:
     name: Chicago, IL, USA

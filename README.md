@@ -37,27 +37,42 @@ unmodified program.
 
 ## Overview
 
-Powerlog runs your program as a subprocess and samples CPU and GPU power in
-lockstep until it exits, then reports a per-domain energy breakdown. It requires
-no source instrumentation, no profiler integration and no root access on most
-systems.
+Powerlog captures **whole-application** energy for an unmodified program, with no
+source instrumentation. Rather than adding a new sensor, it composes the standard
+counters the platform already exposes: it launches the target as a subprocess and
+samples two sources in lockstep -- per-GPU power from NVML and CPU-package power
+from RAPL -- time-stamping each pair against the same wall clock on a 100 ms
+interval.
 
-Because it profiles the whole application, the measurement covers everything the
-program does -- I/O, host-device transfers, kernel launches, synchronization and
-iterative solves -- including the energy that per-kernel profilers miss.
+Because it profiles end to end, the trace spans I/O, host-device transfers,
+kernel launches, synchronization and fixed-point iterations, capturing the energy
+that per-kernel tools miss. Conventional GPU-only accounting can misrank
+implementations and understate total energy by up to 2x, because the CPU package
+is frequently a large and workload-dependent share of the total.
+
+Powerlog reports GPU energy, CPU-package energy, their sum, mean and peak power,
+and the energy-delay product, plus a per-sample trace, and it scales to all GPUs
+in a job. Overhead is negligible by design: sampling is an out-of-process read
+with no in-kernel instrumentation, and samples are buffered in memory and flushed
+to CSV only at exit.
+
+Two caveats are systematic. NVML reports a duty-cycled sensor that can bias
+absolute energy, and RAPL reports package energy (cores and uncore). Runs on the
+same hardware share identical sampling, so neither bias affects relative
+comparison.
 
 ## Features
 
 - Whole-application energy: wrap any command, no code changes
-- CPU and GPU measured together on a shared timeline
+- CPU and GPU sampled in lockstep on a shared timeline
 - GPU backends: NVIDIA (NVML), AMD (ROCm SMI) and Intel/SYCL (Level Zero)
 - CPU backend: RAPL, via powercap sysfs or `perf`
-- Per-domain breakdown: CPU, GPU, total, share, average power and EDP
+- Per-domain breakdown: CPU, GPU, total, share, mean/peak power and EDP
 - Multi-GPU aware, with per-device power columns
 - Graceful degradation: unavailable domains are reported as `n/a`, never fatal
 - CSV summary plus a full power trace for plotting
 - Command line tool and Python API
-- Negligible overhead: out-of-process sampling on a configurable interval
+- Negligible overhead: out-of-process sampling, no root needed on most systems
 
 ## Installation
 
@@ -181,19 +196,11 @@ Powerlog is released under the MIT License. See [LICENSE](LICENSE).
 If you use Powerlog in your work, please cite:
 
 ```bibtex
-@inproceedings{powerlog2026,
-  author    = {Shovon, Ahmedur Rahman and
-               Sun, Yihao and
-               Lan, Zhiling and
-               Perarnau, Swann and
-               Gilray, Thomas and
-               Micinski, Kristopher and
-               Papka, Michael E. and
-               Kumar, Sidharth},
-  title     = {Heterogeneous Energy Characterization of {GPU}-Powered {D}atalog Engines},
-  booktitle = {SC26-W: Workshops of the International Conference for High
-               Performance Computing, Networking, Storage and Analysis},
-  address   = {Chicago, IL, USA},
-  year      = {2026}
+@inproceedings{shovon2026heterogeneous,
+  title={Heterogeneous Energy Characterization of GPU-Powered Datalog Engines},
+  author={Shovon, Ahmedur Rahman and Sun, Yihao and Lan, Zhiling and Perarnau, Swann and Gilray, Thomas and Micinski, Kristopher and Papka, Michael E and Kumar, Sidharth},
+  booktitle={2026 IEEE/ACM Workshop on Energy Efficiency with Sustainable Performance: Techniques, Tools, and Best Practices (EESP)},
+  year={2026},
+  organization={IEEE}
 }
 ```
