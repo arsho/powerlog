@@ -4,16 +4,16 @@
 
 <p align="center">
   <a href="https://pypi.org/project/powerlog/">
-  <img src="https://badge.fury.io/py/powerlog.svg" alt="PyPI version">
+  <img src="https://img.shields.io/pypi/v/powerlog?color=blue" alt="PyPI version">
   </a>
   <a href="https://pypi.org/project/powerlog/">
-  <img src="https://img.shields.io/pypi/pyversions/powerlog.svg" alt="Python versions">
+  <img src="https://img.shields.io/pypi/pyversions/powerlog" alt="Python versions">
   </a>
   <a href="https://powerlog.readthedocs.io/">
-  <img src="https://readthedocs.org/projects/powerlog/badge/?version=latest" alt="Documentation Status">
+  <img src="https://img.shields.io/readthedocs/powerlog" alt="Documentation">
   </a>
   <a href="https://opensource.org/licenses/MIT">
-  <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
   </a>
 </p>
 
@@ -107,14 +107,28 @@ EDP (J*s)         38485.5262
 ================================================================
 ```
 
-Two CSVs are written: a one-row summary and the full power trace. From Python:
+Two CSVs are written: a one-row summary and the full power trace.
+
+The Python API is useful when you want to compare configurations rather than
+profile a single run:
 
 ```python
 from powerlog import measure_power
 
-result = measure_power(["./my_program", "--arg", "value"])
-print(result.total_energy_j, result.cpu_energy_j, result.gpu_energy_j)
+for size in (1024, 2048, 4096):
+    r = measure_power(["./matmul", str(size)])
+    print(f"{size:>5}  {r.total_time_s:6.2f} s  {r.total_energy_j:8.1f} J  "
+          f"cpu {r.cpu_fraction:.0%}")
 ```
+
+```text
+ 1024    1.91 s     287.4 J  cpu 46%
+ 2048   12.42 s    3099.2 J  cpu 31%
+ 4096   98.03 s   26933.6 J  cpu 24%
+```
+
+The fastest configuration is often not the most energy-efficient, which is the
+reason to measure rather than infer.
 
 ## Documentation
 
@@ -140,7 +154,12 @@ powerlog ./bin/matmul 2048
 
 [`datalog-engine-comparison/`](datalog-engine-comparison/) is a larger case study
 that uses Powerlog to compare the energy behaviour of five GPU-accelerated
-Datalog engines.
+Datalog engines -- [MNMGDatalog](https://github.com/harp-lab/MNMGDatalog),
+[GPULog](https://github.com/harp-lab/gdlog),
+[BJoin](https://github.com/harp-lab/batch_joins), INLJoin and
+[cuDF](https://github.com/rapidsai/cudf) -- across two recursive queries and
+seven graphs. It ships the harness, the analysis scripts and the collected
+results; the engines themselves are cloned from their own repositories.
 
 ## Get Help
 

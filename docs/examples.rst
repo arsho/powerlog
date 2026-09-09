@@ -95,7 +95,18 @@ Case study: Datalog engine comparison
 The ``datalog-engine-comparison/`` directory contains a larger study that uses
 Powerlog to compare five GPU-accelerated Datalog engines across two recursive
 queries and seven graphs. It includes the measurement harness, the analysis
-scripts, and the collected results.
+scripts, and the collected results; the engines are cloned from their own
+repositories rather than vendored.
+
+============= ============================================================
+Engine        Source
+============= ============================================================
+MNMGDatalog   https://github.com/harp-lab/MNMGDatalog
+GPULog        https://github.com/harp-lab/gdlog
+BJoin         https://github.com/harp-lab/batch_joins
+INLJoin       https://github.com/harp-lab/MNMGDatalog (``*_nl.cu``)
+cuDF          https://github.com/rapidsai/cudf
+============= ============================================================
 
 A representative finding: the CPU accounts for 32--55% of total energy depending
 on the engine, so GPU-only accounting can misrank engines and understate total
