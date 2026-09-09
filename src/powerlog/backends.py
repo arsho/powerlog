@@ -425,21 +425,27 @@ class AmdHwmonSampler(PowerSampler):
     def device_names(self):
         names = []
         for path in self._paths:
-            # .../card0/device/hwmon/hwmonN/power1_average -> .../card0/device
+            # .../cardN/device/hwmon/hwmonM/power1_* -> .../cardN/device
             device = os.path.dirname(os.path.dirname(os.path.dirname(path)))
             label = None
-            for attr in ("product_name", "device"):
+            try:
+                with open(os.path.join(device, "product_name")) as handle:
+                    label = handle.read().strip()
+            except OSError:
+                label = None
+            if not label:
+                # Fall back to the raw PCI id, which needs qualifying.
                 try:
-                    with open(os.path.join(device, attr)) as handle:
-                        label = handle.read().strip()
-                        break
+                    with open(os.path.join(device, "device")) as handle:
+                        pci_id = handle.read().strip()
+                    label = f"AMD GPU {pci_id}" if pci_id else None
                 except OSError:
-                    continue
-            names.append(f"AMD GPU {label}" if label else "AMD GPU")
+                    label = None
+            names.append(label or "AMD GPU")
         return names
 
     def describe(self):
-        return f"{self.vendor}, {len(self._paths)} device(s)"
+        return self.vendor
 
 
 class XpuSmiSampler(PowerSampler):
