@@ -40,14 +40,20 @@ __all__ = [
     "available_cpu_backends",
 ]
 
-_RUN_TIMEOUT_S = 10
+#: Timeout for one-off availability probes. Kept short so that a broken or
+#: misconfigured vendor tool cannot stall start-up.
+_PROBE_TIMEOUT_S = 3
+
+#: Timeout for a power read taken during sampling. Reads happen once per
+#: interval, so a slow tool must not be allowed to block the loop.
+_READ_TIMEOUT_S = 5
 
 
-def _run(cmd):
+def _run(cmd, timeout=_READ_TIMEOUT_S):
     """Run ``cmd`` and return stdout as text, or ``None`` on any failure."""
     try:
         proc = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=_RUN_TIMEOUT_S
+            cmd, capture_output=True, text=True, timeout=timeout
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -155,7 +161,8 @@ class NvidiaSmiSampler(PowerSampler):
         if shutil.which("nvidia-smi") is None:
             return False
         return _run(["nvidia-smi", "--query-gpu=power.draw",
-                     "--format=csv,noheader,nounits"]) is not None
+                     "--format=csv,noheader,nounits"],
+                    timeout=_PROBE_TIMEOUT_S) is not None
 
     def read_power(self):
         out = _run(["nvidia-smi", "--query-gpu=power.draw",
@@ -198,15 +205,15 @@ class RocmSmiSampler(PowerSampler):
         tool = cls._tool()
         if tool is None:
             return False
-        return RocmSmiSampler()._raw() is not None
+        return RocmSmiSampler()._raw(timeout=_PROBE_TIMEOUT_S) is not None
 
-    def _raw(self):
+    def _raw(self, timeout=_READ_TIMEOUT_S):
         tool = self._tool()
         if tool is None:
             return None
         if tool == "amd-smi":
-            return _run(["amd-smi", "metric", "-p", "--csv"])
-        return _run(["rocm-smi", "--showpower", "--csv"])
+            return _run(["amd-smi", "metric", "-p", "--csv"], timeout=timeout)
+        return _run(["rocm-smi", "--showpower", "--csv"], timeout=timeout)
 
     def read_power(self):
         out = self._raw()
@@ -264,14 +271,15 @@ class XpuSmiSampler(PowerSampler):
     def is_available(cls):
         if cls._tool() is None:
             return False
-        return bool(XpuSmiSampler().read_power())
+        return bool(XpuSmiSampler().read_power(timeout=_PROBE_TIMEOUT_S))
 
-    def read_power(self):
+    def read_power(self, timeout=_READ_TIMEOUT_S):
         tool = self._tool()
         if tool is None:
             return []
         # -m 1 selects the "GPU Power (W)" metric; -n 1 takes a single sample.
-        out = _run([tool, "dump", "-d", "-1", "-m", "1", "-n", "1"])
+        out = _run([tool, "dump", "-d", "-1", "-m", "1", "-n", "1"],
+                   timeout=timeout)
         if out is None:
             return []
         values = []
@@ -405,7 +413,7 @@ class PerfRaplCounter(EnergyCounter):
         try:
             proc = subprocess.run(
                 ["perf", "stat", "-e", "power/energy-pkg/", "true"],
-                capture_output=True, text=True, timeout=_RUN_TIMEOUT_S,
+                capture_output=True, text=True, timeout=_PROBE_TIMEOUT_S,
             )
         except (OSError, subprocess.SubprocessError):
             return False

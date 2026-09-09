@@ -136,8 +136,28 @@ Troubleshooting
    ``sudo chmod -R a+r /sys/class/powercap``. CPU measurement is Linux only.
 
 *GPU shows* ``n/a``
-   No vendor tool was found on ``PATH``. Confirm with ``powerlog
-   --list-backends``, and check that the tool runs standalone.
+   No vendor tool was found on ``PATH``, or the tool is present but fails when
+   run. Powerlog shells out to the vendor tool, so it must work standalone
+   first:
+
+   .. code-block:: bash
+
+      nvidia-smi --query-gpu=power.draw --format=csv,noheader,nounits
+      amd-smi metric -p --csv
+      rocm-smi --showpower --csv
+      xpu-smi dump -d -1 -m 1 -n 1
+
+   A common failure on module-based HPC systems is a ROCm module that does not
+   set ``LD_LIBRARY_PATH``, so ``rocm-smi`` or ``amd-smi`` cannot find
+   ``librocm_smi64.so`` / ``libamd_smi.so``. Point it at the ROCm install:
+
+   .. code-block:: bash
+
+      export LD_LIBRARY_PATH=$ROCM_PATH/lib:$LD_LIBRARY_PATH
+
+   Confirm what Powerlog can see with ``powerlog --list-backends``. Probes are
+   capped at a few seconds each, so a broken tool costs a short delay rather
+   than hanging.
 
 *Energy looks too low on a short run*
    The default 100 ms interval needs a run of at least a few seconds. Lower it
