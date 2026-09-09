@@ -4,24 +4,83 @@ build-backend = "hatchling.build"
 
 [project]
 name = "powerlog"
-version = "0.0.2"
+version = "0.1.0"
 dependencies = []
 requires-python = ">=3.8"
 authors = [
   {name = "Ahmedur Rahman Shovon", email = "shovon.sylhet@gmail.com"},
 ]
-description = "GPU power log"
+description = "Measure the CPU and GPU energy consumed by an unmodified program"
 readme = "README.md"
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "Environment :: GPU",
+    "Environment :: GPU :: NVIDIA CUDA",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
     "Operating System :: OS Independent",
-    "Development Status :: 4 - Beta"
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Benchmark",
+    "Topic :: System :: Hardware",
+    "Topic :: System :: Monitoring",
+    "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
 ]
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
-keywords = ["powerlog", "gpupower", "energy", "power analysis", "power log"]
+keywords = [
+    "powerlog",
+    "energy",
+    "power",
+    "profiling",
+    "gpu",
+    "cpu",
+    "nvidia",
+    "nvml",
+    "amd",
+    "rocm",
+    "sycl",
+    "rapl",
+    "hpc",
+    "benchmark",
+]
+
+[project.optional-dependencies]
+docs = [
+    "sphinx>=7.0",
+    "furo>=2024.1.29",
+    "sphinx-copybutton>=0.5",
+    "sphinx-argparse>=0.4",
+    "myst-parser>=2.0",
+]
+
 [project.scripts]
-powerlog = "powerlog.core:main"
+powerlog = "powerlog.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/arsho/powerlog"
+Documentation = "https://powerlog.readthedocs.io"
+Repository = "https://github.com/arsho/powerlog"
 Issues = "https://github.com/arsho/powerlog/issues"
+Changelog = "https://github.com/arsho/powerlog/blob/main/Changelog.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/powerlog"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/docs",
+    "/apps",
+    "/README.md",
+    "/Changelog.md",
+    "/LICENSE",
+]

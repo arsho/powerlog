@@ -1,0 +1,7 @@
+Query,Dataset,Engine,GPUs,Runtime(s),GPUEnergy(J),EDP(J*s)
+TC,usroads,MNMGDatalog,1,76.3,7964,607553
+TC,usroads,MNMGDatalog,2,45.1,8282,373518
+TC,usroads,MNMGDatalog,4,26.3,9848,259002
+SG,vsp,MNMGDatalog,1,89.5,9630,861885
+SG,vsp,MNMGDatalog,2,55.2,12405,684756
+SG,vsp,MNMGDatalog,4,35.8,13648,488598

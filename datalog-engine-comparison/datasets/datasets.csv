@@ -1,0 +1,8 @@
+Name,Source,Category,Nodes,Edges,Queries,URL
+fe_body,SuiteSparse,Finite element mesh,45087,163734,TC;SG,https://sparse.tamu.edu/DIMACS10/fe_body
+fe_sphere,SuiteSparse,Finite element mesh,16386,49152,SG,https://sparse.tamu.edu/DIMACS10/fe_sphere
+vsp,SuiteSparse,Graph partitioning,139752,552020,TC,https://sparse.tamu.edu/DIMACS10/vsp_finan512_scagr7-2c_rlfddd
+sf,SuiteSparse,Road network (San Francisco),174956,223001,TC,https://sparse.tamu.edu/Rajat/SF.cedge
+usroads,SuiteSparse,Road network (US),129164,165435,TC,https://sparse.tamu.edu/Gleich/usroads
+ca_hepth,SNAP,Collaboration network,9877,51971,SG,https://snap.stanford.edu/data/ca-HepTh.html
+loc-brightkite,SNAP,Location-based social network,58228,214078,SG,https://snap.stanford.edu/data/loc-Brightkite.html

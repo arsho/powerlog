@@ -97,6 +97,18 @@ test_output/
 
 # Powerlog/power/energy CSV logs (if auto-generated)
 *.csv
+powerlog_output*.csv
+
+# ...but keep the committed measurement results and manifests
+!datalog-engine-comparison/results/**/*.csv
+!datalog-engine-comparison/datasets/datasets.csv
+
+# Example app build artifacts
+apps/bin/
+apps/results/
+
+# Downloaded datasets (fetch with datasets/fetch_datasets.sh)
+datalog-engine-comparison/datasets/raw/
 
 # Editor backups
 *~
