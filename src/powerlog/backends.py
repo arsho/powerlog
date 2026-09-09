@@ -17,7 +17,9 @@ both CPU and GPU energy whenever the platform allows it.
 
 from __future__ import annotations
 
+import csv
 import glob
+import io
 import os
 import shutil
 import subprocess
@@ -188,70 +190,155 @@ class NvidiaSmiSampler(PowerSampler):
 
 
 class RocmSmiSampler(PowerSampler):
-    """AMD GPU power via ``amd-smi`` or ``rocm-smi`` (ROCm SMI)."""
+    """AMD GPU power via ``amd-smi`` or ``rocm-smi`` (ROCm SMI).
+
+    Both tools are tried in order and the first one that actually returns a
+    usable reading is kept. This matters because ``amd-smi`` is a Python wrapper
+    that resolves ``libamd_smi.so`` through ctypes rather than the dynamic
+    loader, so it can be present on ``PATH`` yet fail on module-based systems
+    where ``rocm-smi``, a plain binary, works fine.
+    """
 
     name = "amd"
     vendor = "AMD GPU (rocm-smi / amd-smi)"
 
+    #: (tool, power command, product-name command), tried in order.
+    _TOOLS = (
+        ("amd-smi",
+         ["amd-smi", "metric", "-p", "--csv"],
+         ["amd-smi", "static", "-a", "--csv"]),
+        ("rocm-smi",
+         ["rocm-smi", "--showpower", "--csv"],
+         ["rocm-smi", "--showproductname", "--csv"]),
+    )
+
+    def __init__(self, device_count=None):
+        super().__init__(device_count=device_count)
+        self._tool = None  # resolved on first successful call
+
+    #: Header substrings that denote a static rating rather than a live draw.
+    _NOT_A_DRAW = ("cap", "limit", "max", "min", "default")
+
+    @staticmethod
+    def _parse_csv_column(text, match, exclude=()):
+        """Return the numeric values of the first column whose header matches.
+
+        Falls back to the last numeric field of each row when no header looks
+        right, which keeps older ``rocm-smi`` layouts working.
+        """
+        if not text:
+            return []
+        rows = [row for row in csv.reader(io.StringIO(text)) if row]
+        if not rows:
+            return []
+
+        # Prefer a column that is explicitly an average/current draw, so a
+        # layout listing both "Max ... Power" and "Average ... Power" picks the
+        # latter regardless of column order.
+        index = None
+        candidates = [
+            position for position, name in enumerate(rows[0])
+            if match in name.lower()
+            and not any(bad in name.lower() for bad in exclude)
+        ]
+        for position in candidates:
+            low = rows[0][position].lower()
+            if "avg" in low or "average" in low or "current" in low:
+                index = position
+                break
+        if index is None and candidates:
+            index = candidates[0]
+
+        values = []
+        for row in rows[1:]:
+            cell = None
+            if index is not None and index < len(row):
+                cell = row[index]
+            else:
+                for candidate in reversed(row):
+                    try:
+                        float(candidate.strip())
+                    except (ValueError, AttributeError):
+                        continue
+                    cell = candidate
+                    break
+            if cell is None:
+                continue
+            try:
+                # Cells may carry units, e.g. "35.0 W".
+                values.append(float(str(cell).strip().split()[0]))
+            except (ValueError, IndexError):
+                continue
+        return values
+
     @classmethod
-    def _tool(cls):
-        for tool in ("amd-smi", "rocm-smi"):
-            if shutil.which(tool):
-                return tool
-        return None
+    def _probe(cls, timeout=_PROBE_TIMEOUT_S):
+        """Return the first (tool, power command) pair that yields a reading."""
+        for tool, power_cmd, _ in cls._TOOLS:
+            if shutil.which(tool) is None:
+                continue
+            out = _run(power_cmd, timeout=timeout)
+            # Exclude "power cap"/"power limit" columns, which are static.
+            if out and cls._parse_csv_column(out, "power", cls._NOT_A_DRAW):
+                return tool, power_cmd
+        return None, None
 
     @classmethod
     def is_available(cls):
-        tool = cls._tool()
-        if tool is None:
-            return False
-        return RocmSmiSampler()._raw(timeout=_PROBE_TIMEOUT_S) is not None
+        tool, _ = cls._probe()
+        return tool is not None
 
-    def _raw(self, timeout=_READ_TIMEOUT_S):
-        tool = self._tool()
-        if tool is None:
-            return None
-        if tool == "amd-smi":
-            return _run(["amd-smi", "metric", "-p", "--csv"], timeout=timeout)
-        return _run(["rocm-smi", "--showpower", "--csv"], timeout=timeout)
+    def _resolve(self):
+        """Pick and remember a working tool."""
+        if self._tool is None:
+            self._tool, _ = self._probe()
+        return self._tool
 
     def read_power(self):
-        out = self._raw()
-        if out is None:
-            return []
-        values = []
-        for line in out.strip().splitlines():
-            low = line.lower()
-            if not line.strip() or "power" in low and "," in line and any(
-                c.isalpha() for c in line.split(",")[-1]
-            ):
-                # Header row such as "device,Average Graphics Package Power (W)".
-                continue
-            parts = [p.strip() for p in line.split(",")]
-            for part in reversed(parts):
-                try:
-                    values.append(float(part))
-                    break
-                except ValueError:
-                    continue
-        return values
-
-    def device_names(self):
-        tool = self._tool()
+        tool = self._resolve()
         if tool is None:
             return []
-        if tool == "amd-smi":
-            out = _run(["amd-smi", "static", "-a", "--csv"])
-        else:
-            out = _run(["rocm-smi", "--showproductname", "--csv"])
-        if out is None:
+        for name, power_cmd, _ in self._TOOLS:
+            if name != tool:
+                continue
+            out = _run(power_cmd)
+            return self._parse_csv_column(out, "power", self._NOT_A_DRAW)
+        return []
+
+    def device_names(self):
+        tool = self._resolve()
+        if tool is None:
             return []
-        names = []
-        for line in out.strip().splitlines()[1:]:
-            parts = [p.strip() for p in line.split(",") if p.strip()]
-            if len(parts) >= 2:
-                names.append(parts[-1])
-        return names
+        for name, _, name_cmd in self._TOOLS:
+            if name != tool:
+                continue
+            out = _run(name_cmd)
+            if not out:
+                return []
+            rows = [row for row in csv.reader(io.StringIO(out)) if row]
+            if len(rows) < 2:
+                return []
+            # rocm-smi calls it "Card Series"/"Card Model"; amd-smi uses
+            # "market_name"/"product_name".
+            index = None
+            for wanted in ("market", "product", "series", "model", "name"):
+                for position, column in enumerate(rows[0]):
+                    low = column.lower()
+                    if wanted in low and "vendor" not in low and "sku" not in low:
+                        index = position
+                        break
+                if index is not None:
+                    break
+            names = []
+            for row in rows[1:]:
+                if index is not None and index < len(row) and row[index].strip():
+                    names.append(row[index].strip())
+            return names
+        return []
+
+    def describe(self):
+        tool = self._tool or "rocm-smi/amd-smi"
+        return f"AMD GPU ({tool})"
 
 
 class XpuSmiSampler(PowerSampler):
