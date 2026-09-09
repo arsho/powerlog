@@ -37,42 +37,20 @@ unmodified program.
 
 ## Overview
 
-Powerlog captures **whole-application** energy for an unmodified program, with no
-source instrumentation. Rather than adding a new sensor, it composes the standard
-counters the platform already exposes: it launches the target as a subprocess and
-samples two sources in lockstep -- per-GPU power from NVML and CPU-package power
-from RAPL -- time-stamping each pair against the same wall clock on a 100 ms
-interval.
-
-Because it profiles end to end, the trace spans I/O, host-device transfers,
-kernel launches, synchronization and fixed-point iterations, capturing the energy
-that per-kernel tools miss. Conventional GPU-only accounting can misrank
-implementations and understate total energy by up to 2x, because the CPU package
-is frequently a large and workload-dependent share of the total.
-
-Powerlog reports GPU energy, CPU-package energy, their sum, mean and peak power,
-and the energy-delay product, plus a per-sample trace, and it scales to all GPUs
-in a job. Overhead is negligible by design: sampling is an out-of-process read
-with no in-kernel instrumentation, and samples are buffered in memory and flushed
-to CSV only at exit.
-
-Two caveats are systematic. NVML reports a duty-cycled sensor that can bias
-absolute energy, and RAPL reports package energy (cores and uncore). Runs on the
-same hardware share identical sampling, so neither bias affects relative
-comparison.
+Powerlog wraps any command and reports the CPU and GPU energy it consumed,
+sampling NVML and RAPL in lockstep on a shared timeline.
 
 ## Features
 
-- Whole-application energy: wrap any command, no code changes
-- CPU and GPU sampled in lockstep on a shared timeline
-- GPU backends: NVIDIA (NVML), AMD (ROCm SMI) and Intel/SYCL (Level Zero)
-- CPU backend: RAPL, via powercap sysfs or `perf`
-- Per-domain breakdown: CPU, GPU, total, share, mean/peak power and EDP
-- Multi-GPU aware, with per-device power columns
-- Graceful degradation: unavailable domains are reported as `n/a`, never fatal
-- CSV summary plus a full power trace for plotting
-- Command line tool and Python API
-- Negligible overhead: out-of-process sampling, no root needed on most systems
+- **Heterogeneous** -- CPU package and GPU energy on one timeline, not GPU alone
+- **Portable** -- NVIDIA (NVML), AMD (ROCm SMI), Intel/SYCL (Level Zero), RAPL
+- **Non-intrusive** -- unmodified binaries, no source or kernel instrumentation
+- **Whole-application** -- covers I/O, transfers, launches and synchronization
+- **Low overhead** -- out-of-process sampling, buffered, flushed at exit
+- **Multi-GPU** -- per-device power columns, MPI-friendly
+- **Simple** -- one command, no root on most systems
+- **Robust** -- unmeasurable domains report `n/a` instead of failing
+- **Scriptable** -- CSV summary and full power trace, program exit status preserved
 
 ## Installation
 
@@ -124,26 +102,21 @@ EDP (J*s)         38485.5262
 
 Two CSVs are written: a one-row summary and the full power trace.
 
-The Python API is useful when you want to compare configurations rather than
-profile a single run:
+### Common options
 
-```python
-from powerlog import measure_power
-
-for size in (1024, 2048, 4096):
-    r = measure_power(["./matmul", str(size)])
-    print(f"{size:>5}  {r.total_time_s:6.2f} s  {r.total_energy_j:8.1f} J  "
-          f"cpu {r.cpu_fraction:.0%}")
+```bash
+powerlog --output run.csv ./my_program     # name the output (default: powerlog_output.csv)
+powerlog --no-csv ./my_program             # print only, write nothing
+powerlog --gpu 4 mpiexec -n 4 ./my_program # sum the first 4 GPUs
+powerlog --interval 0.05 ./my_program      # sample every 50 ms
+powerlog --no-cpu ./my_program             # GPU only
+powerlog --gpu-backend amd ./my_program    # pin the vendor backend
+powerlog --list-backends                   # show detected power sources
 ```
 
-```text
- 1024    1.91 s     287.4 J  cpu 46%
- 2048   12.42 s    3099.2 J  cpu 31%
- 4096   98.03 s   26933.6 J  cpu 24%
-```
-
-The fastest configuration is often not the most energy-efficient, which is the
-reason to measure rather than infer.
+Powerlog exits with the profiled program's exit status. See the
+[command line reference](https://powerlog.readthedocs.io/en/latest/cli.html) for
+the full list.
 
 ## Documentation
 
