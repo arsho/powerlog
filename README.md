@@ -163,7 +163,14 @@ If you use Powerlog in your work, please cite:
 
 ```bibtex
 @inproceedings{powerlog2026,
-  author    = {Shovon, Ahmedur Rahman},
+  author    = {Shovon, Ahmedur Rahman and
+               Sun, Yihao and
+               Lan, Zhiling and
+               Perarnau, Swann and
+               Gilray, Thomas and
+               Micinski, Kristopher and
+               Papka, Michael E. and
+               Kumar, Sidharth},
   title     = {Heterogeneous Energy Characterization of {GPU}-Powered {D}atalog Engines},
   booktitle = {SC26-W: Workshops of the International Conference for High
                Performance Computing, Networking, Storage and Analysis},

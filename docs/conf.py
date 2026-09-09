@@ -12,8 +12,11 @@ from powerlog import __version__  # noqa: E402
 # -- Project information ----------------------------------------------------
 
 project = "Powerlog"
-author = "Ahmedur Rahman Shovon"
-copyright = f"{date.today().year}, {author}"
+author = (
+    "Ahmedur Rahman Shovon, Yihao Sun, Zhiling Lan, Swann Perarnau, "
+    "Thomas Gilray, Kristopher Micinski, Michael E. Papka, Sidharth Kumar"
+)
+copyright = f"{date.today().year}, Powerlog authors"
 release = __version__
 version = __version__
 

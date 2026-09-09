@@ -1,0 +1,98 @@
+cff-version: 1.2.0
+message: "If you use Powerlog in your work, please cite the following paper."
+title: Powerlog
+abstract: >-
+  A lightweight harness that measures the CPU and GPU energy consumed by an
+  unmodified program.
+type: software
+license: MIT
+version: 0.1.0
+repository-code: "https://github.com/arsho/powerlog"
+url: "https://powerlog.readthedocs.io"
+keywords:
+  - energy
+  - power
+  - profiling
+  - gpu
+  - cpu
+  - nvml
+  - rocm
+  - sycl
+  - rapl
+  - hpc
+authors:
+  - family-names: Shovon
+    given-names: Ahmedur Rahman
+    email: ashovon@anl.gov
+    affiliation: Argonne National Laboratory
+  - family-names: Sun
+    given-names: Yihao
+    email: yihao.sun@usu.edu
+    affiliation: Utah State University
+  - family-names: Lan
+    given-names: Zhiling
+    email: zlan@uic.edu
+    affiliation: University of Illinois Chicago
+  - family-names: Perarnau
+    given-names: Swann
+    email: swann@anl.gov
+    affiliation: Argonne National Laboratory
+  - family-names: Gilray
+    given-names: Thomas
+    email: thomas.gilray@wsu.edu
+    affiliation: Washington State University
+  - family-names: Micinski
+    given-names: Kristopher
+    email: kkmicins@syr.edu
+    affiliation: Syracuse University
+  - family-names: Papka
+    given-names: Michael E.
+    email: papka@uic.edu
+    affiliation: University of Illinois Chicago
+  - family-names: Kumar
+    given-names: Sidharth
+    email: sidharth@uic.edu
+    affiliation: University of Illinois Chicago
+preferred-citation:
+  type: conference-paper
+  title: >-
+    Heterogeneous Energy Characterization of GPU-Powered Datalog Engines
+  collection-title: >-
+    SC26-W: Workshops of the International Conference for High Performance
+    Computing, Networking, Storage and Analysis
+  year: 2026
+  location:
+    name: Chicago, IL, USA
+  authors:
+    - family-names: Shovon
+      given-names: Ahmedur Rahman
+      email: ashovon@anl.gov
+      affiliation: Argonne National Laboratory
+    - family-names: Sun
+      given-names: Yihao
+      email: yihao.sun@usu.edu
+      affiliation: Utah State University
+    - family-names: Lan
+      given-names: Zhiling
+      email: zlan@uic.edu
+      affiliation: University of Illinois Chicago
+    - family-names: Perarnau
+      given-names: Swann
+      email: swann@anl.gov
+      affiliation: Argonne National Laboratory
+    - family-names: Gilray
+      given-names: Thomas
+      email: thomas.gilray@wsu.edu
+      affiliation: Washington State University
+    - family-names: Micinski
+      given-names: Kristopher
+      email: kkmicins@syr.edu
+      affiliation: Syracuse University
+    - family-names: Papka
+      given-names: Michael E.
+      email: papka@uic.edu
+      affiliation: University of Illinois Chicago
+    - family-names: Kumar
+      given-names: Sidharth
+      email: sidharth@uic.edu
+      affiliation: University of Illinois Chicago

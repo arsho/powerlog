@@ -72,8 +72,12 @@ Pipfile.lock
 # VS Code
 .vscode/
 
-# JetBrains
+# JetBrains (PyCharm, IntelliJ, CLion, ...)
 .idea/
+**/.idea/
+*.iml
+*.iws
+*.ipr
 
 # macOS
 .DS_Store
@@ -82,9 +86,6 @@ Pipfile.lock
 Thumbs.db
 ehthumbs.db
 Desktop.ini
-
-# PyCharm
-*.iml
 
 # Test output
 test_output/
