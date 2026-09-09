@@ -8,7 +8,9 @@ per-domain breakdown.
 ### Added
 - CPU package energy measurement via RAPL, using the powercap sysfs interface
   (`rapl-sysfs`) or `perf` (`perf`), selected automatically.
-- AMD GPU support via ROCm SMI (`rocm-smi` / `amd-smi`).
+- AMD GPU support via ROCm SMI (`rocm-smi` / `amd-smi`), with an
+  `amd-sysfs` fallback reading the `amdgpu` hwmon nodes directly so no
+  ROCm installation is required.
 - Intel GPU / SYCL support via Level Zero (`xpu-smi`).
 - Per-domain energy breakdown: CPU, GPU, total, per-domain share, average power
   and energy-delay product.

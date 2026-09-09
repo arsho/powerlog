@@ -64,7 +64,7 @@ your hardware; whatever is missing is reported as `n/a`.
 | Domain | Provided by | Requirement |
 | ------ | ----------- | ----------- |
 | NVIDIA GPU | NVIDIA driver | `nvidia-smi` on `PATH` |
-| AMD GPU | ROCm | `rocm-smi` or `amd-smi` on `PATH` |
+| AMD GPU | ROCm, or the `amdgpu` kernel driver | `rocm-smi`/`amd-smi` on `PATH`, else readable `/sys/class/drm/card*/device/hwmon` |
 | Intel GPU | Intel XPU Manager / oneAPI | `xpu-smi` on `PATH` |
 | CPU | Linux RAPL | readable `/sys/class/powercap`, or `perf` |
 

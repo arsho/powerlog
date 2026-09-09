@@ -29,6 +29,7 @@ __all__ = [
     "EnergyCounter",
     "NvidiaSmiSampler",
     "RocmSmiSampler",
+    "AmdHwmonSampler",
     "XpuSmiSampler",
     "RaplSysfsCounter",
     "PerfRaplCounter",
@@ -341,6 +342,84 @@ class RocmSmiSampler(PowerSampler):
         return f"AMD GPU ({tool})"
 
 
+class AmdHwmonSampler(PowerSampler):
+    """AMD GPU power read straight from the ``amdgpu`` hwmon sysfs nodes.
+
+    The kernel driver exports instantaneous board power under
+    ``/sys/class/drm/card*/device/hwmon/hwmon*/power1_average`` in microwatts.
+    Reading it needs no ROCm installation at all, which makes this a reliable
+    fallback on systems where ``rocm-smi`` or ``amd-smi`` cannot load their
+    shared libraries.
+    """
+
+    name = "amd-sysfs"
+    vendor = "AMD GPU (amdgpu hwmon sysfs)"
+
+    #: Preferred first; power1_input is used by cards without an averaging node.
+    _NODES = ("power1_average", "power1_input")
+
+    def __init__(self, device_count=None):
+        super().__init__(device_count=device_count)
+        self._paths = self._find_inputs()
+
+    @classmethod
+    def _find_inputs(cls):
+        """Return one readable power node per AMD GPU, ordered by card number."""
+        paths = []
+        pattern = "/sys/class/drm/card[0-9]*/device/hwmon/hwmon[0-9]*"
+        for hwmon in sorted(glob.glob(pattern)):
+            # Only consider hwmon instances belonging to the amdgpu driver.
+            name_path = os.path.join(hwmon, "name")
+            try:
+                with open(name_path) as handle:
+                    if handle.read().strip() not in ("amdgpu", "amdgpu_xgmi"):
+                        continue
+            except OSError:
+                continue
+            for node in cls._NODES:
+                candidate = os.path.join(hwmon, node)
+                if os.access(candidate, os.R_OK):
+                    paths.append(candidate)
+                    break
+        return paths
+
+    @classmethod
+    def is_available(cls):
+        if not cls._find_inputs():
+            return False
+        return bool(AmdHwmonSampler().read_power())
+
+    def read_power(self):
+        values = []
+        for path in self._paths:
+            try:
+                with open(path) as handle:
+                    # hwmon reports microwatts.
+                    values.append(int(handle.read().strip()) / 1e6)
+            except (OSError, ValueError):
+                continue
+        return values
+
+    def device_names(self):
+        names = []
+        for path in self._paths:
+            # .../card0/device/hwmon/hwmonN/power1_average -> .../card0/device
+            device = os.path.dirname(os.path.dirname(os.path.dirname(path)))
+            label = None
+            for attr in ("product_name", "device"):
+                try:
+                    with open(os.path.join(device, attr)) as handle:
+                        label = handle.read().strip()
+                        break
+                except OSError:
+                    continue
+            names.append(f"AMD GPU {label}" if label else "AMD GPU")
+        return names
+
+    def describe(self):
+        return f"{self.vendor}, {len(self._paths)} device(s)"
+
+
 class XpuSmiSampler(PowerSampler):
     """Intel GPU power via ``xpu-smi`` (Level Zero / SYCL devices)."""
 
@@ -395,7 +474,8 @@ class XpuSmiSampler(PowerSampler):
 
 
 #: GPU backends in auto-detection priority order.
-GPU_BACKENDS = (NvidiaSmiSampler, RocmSmiSampler, XpuSmiSampler)
+GPU_BACKENDS = (NvidiaSmiSampler, RocmSmiSampler, AmdHwmonSampler,
+                XpuSmiSampler)
 
 
 # --------------------------------------------------------------------------- #

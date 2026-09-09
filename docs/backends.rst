@@ -34,6 +34,16 @@ contribute zero.
 AMD GPUs through ROCm SMI. Prefers ``amd-smi metric -p --csv`` and falls back to
 ``rocm-smi --showpower --csv``.
 
+``amd-sysfs``
+^^^^^^^^^^^^^
+
+AMD GPU power read directly from the ``amdgpu`` driver's hwmon nodes,
+``/sys/class/drm/card*/device/hwmon/hwmon*/power1_average`` (microwatts).
+
+This needs no ROCm installation and is tried when ``amd-smi`` and ``rocm-smi``
+are both unusable, which is common on module-based HPC systems where those
+tools cannot locate their shared libraries.
+
 ``intel``
 ^^^^^^^^^
 
@@ -154,6 +164,15 @@ Troubleshooting
    .. code-block:: bash
 
       export LD_LIBRARY_PATH=$ROCM_PATH/lib:$LD_LIBRARY_PATH
+
+   Note that both tools are Python wrappers that load their library through
+   ctypes, so they can fail even when the path looks correct. If neither can be
+   fixed, the ``amd-sysfs`` backend reads the same power figure straight from
+   the kernel and needs no ROCm at all; check for it with:
+
+   .. code-block:: bash
+
+      cat /sys/class/drm/card0/device/hwmon/hwmon*/power1_average
 
    Confirm what Powerlog can see with ``powerlog --list-backends``. Probes are
    capped at a few seconds each, so a broken tool costs a short delay rather
