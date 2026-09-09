@@ -21,6 +21,7 @@ import csv
 import glob
 import io
 import os
+import re
 import shutil
 import subprocess
 
@@ -364,24 +365,45 @@ class AmdHwmonSampler(PowerSampler):
 
     @classmethod
     def _find_inputs(cls):
-        """Return one readable power node per AMD GPU, ordered by card number."""
+        """Return one readable power node per distinct AMD GPU.
+
+        Several ``cardN`` entries can refer to the same physical board, for
+        example when a MI300X is partitioned, so results are de-duplicated on
+        the resolved PCI address. Without that the same board power would be
+        counted once per partition.
+        """
         paths = []
+        seen = set()
         pattern = "/sys/class/drm/card[0-9]*/device/hwmon/hwmon[0-9]*"
-        for hwmon in sorted(glob.glob(pattern)):
+        for hwmon in sorted(glob.glob(pattern), key=cls._card_sort_key):
             # Only consider hwmon instances belonging to the amdgpu driver.
-            name_path = os.path.join(hwmon, "name")
             try:
-                with open(name_path) as handle:
+                with open(os.path.join(hwmon, "name")) as handle:
                     if handle.read().strip() not in ("amdgpu", "amdgpu_xgmi"):
                         continue
             except OSError:
                 continue
+
+            # .../cardN/device/hwmon/hwmonM -> the PCI device behind cardN.
+            device = os.path.realpath(
+                os.path.dirname(os.path.dirname(hwmon))
+            )
+            if device in seen:
+                continue
+
             for node in cls._NODES:
                 candidate = os.path.join(hwmon, node)
                 if os.access(candidate, os.R_OK):
                     paths.append(candidate)
+                    seen.add(device)
                     break
         return paths
+
+    @staticmethod
+    def _card_sort_key(path):
+        """Sort card paths numerically so card2 precedes card10."""
+        match = re.search(r"/card(\d+)/", path)
+        return (int(match.group(1)) if match else 0, path)
 
     @classmethod
     def is_available(cls):
