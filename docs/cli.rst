@@ -57,13 +57,6 @@ Limit sampling to the first four GPUs of the node:
 
    powerlog --gpu 4 ./nbody 131072
 
-Pin the vendor backend:
-
-.. code-block:: bash
-
-   powerlog --gpu-backend amd ./matmul
-   powerlog --gpu-backend intel ./matmul_sycl
-
 Inspect available power sources:
 
 .. code-block:: bash

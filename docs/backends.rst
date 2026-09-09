@@ -65,28 +65,20 @@ samples file stays empty.
 Selecting a backend
 -------------------
 
-Detection is automatic and you should not normally need to choose a backend. The
-case that does require it is a machine with GPUs from more than one vendor, for
-example an Intel integrated GPU alongside a discrete NVIDIA card: probing order
-prefers NVIDIA, so profiling a SYCL program on the integrated GPU needs
-``--gpu-backend intel``.
+Backends are detected automatically and the command line does not expose a way
+to override that: a machine has one CPU package interface and, in practice, one
+GPU vendor to measure. On a host with GPUs from more than one vendor, probing
+order prefers NVIDIA, then AMD, then Intel.
 
-From the command line:
-
-.. code-block:: bash
-
-   powerlog --gpu-backend amd ./my_program
-   powerlog --cpu-backend perf ./my_program
-
-To choose *which domains* are measured rather than which tool reads them, use
-``-m/--measure``:
+Use ``-m/--measure`` to choose which *domains* are measured:
 
 .. code-block:: bash
 
    powerlog -m gpu ./my_program                 # GPU only
    powerlog -m cpu ./my_program                 # CPU only
 
-From Python:
+The Python API does allow a specific backend to be pinned, which is useful in
+tests and on unusual hardware:
 
 .. code-block:: python
 

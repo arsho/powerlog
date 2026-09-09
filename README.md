@@ -113,9 +113,9 @@ powerlog ./my_program --arg value
                     POWERLOG ENERGY SUMMARY
 ================================================================
 Command                 ./my_program --arg value
-Exit code               0
 Runtime (s)             12.4180
-Samples                 124
+CPU                     AMD EPYC 7532 32-Core Processor
+GPU                     NVIDIA A100-PCIE-40GB
 ----------------------------------------------------------------
 Domain            Energy (J)   Share (%)   Avg Power (W)
 ----------------------------------------------------------------
@@ -124,6 +124,10 @@ GPU                2136.7742       68.94        172.0700
 ----------------------------------------------------------------
 TOTAL              3099.1755
 EDP (J*s)         38485.5262
+----------------------------------------------------------------
+Samples                 124
+CPU source              RAPL powercap sysfs, 2 package domain(s)
+GPU source              NVML (nvidia-smi), 1 device(s)
 ================================================================
 ```
 
@@ -151,11 +155,8 @@ Powerlog exits with the profiled program's exit status. See the
 [command line reference](https://powerlog.readthedocs.io/en/latest/cli.html) for
 the full list.
 
-Power sources are detected automatically and you should not normally need to
-choose one. The exception is a machine with GPUs from more than one vendor, such
-as an Intel integrated GPU alongside a discrete NVIDIA card: auto-detection
-prefers NVIDIA, so profiling a SYCL program on the integrated GPU needs
-`--gpu-backend intel`.
+Power sources are detected automatically. On a machine with GPUs from more than
+one vendor, NVIDIA is preferred.
 
 ## Documentation
 

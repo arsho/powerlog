@@ -51,10 +51,10 @@ One header row and one data row, with the energy broken down by domain.
      - Host CPU product name.
    * - ``GPU Model``
      - GPU product name(s), separated by ``;`` if they differ.
-   * - ``CPU Backend``
-     - Description of the CPU source used.
-   * - ``GPU Backend``
-     - Description of the GPU source used.
+   * - ``CPU Source``
+     - Which interface the CPU energy was read from.
+   * - ``GPU Source``
+     - Which tool the GPU power was read from.
 
 Example:
 

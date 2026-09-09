@@ -17,9 +17,9 @@ default, so no flags are required:
                        POWERLOG ENERGY SUMMARY
    ================================================================
    Command                 ./my_program --arg value
-   Exit code               0
    Runtime (s)             12.4180
-   Samples                 124
+   CPU                     AMD EPYC 7532 32-Core Processor
+   GPU                     NVIDIA A100-PCIE-40GB
    ----------------------------------------------------------------
    Domain            Energy (J)   Share (%)   Avg Power (W)
    ----------------------------------------------------------------
@@ -32,10 +32,9 @@ default, so no flags are required:
    GPU power (W)           min 61.20 / max 249.80
    CPU power (W)           min 74.90 / max 79.30
    ----------------------------------------------------------------
-   CPU                     AMD EPYC 7532 32-Core Processor
-   GPU                     NVIDIA A100-PCIE-40GB
-   CPU backend             CPU package (RAPL powercap sysfs), 2 package domain(s)
-   GPU backend             NVIDIA GPU (nvidia-smi / NVML) (1 device(s))
+   Samples                 124
+   CPU source              RAPL powercap sysfs, 2 package domain(s)
+   GPU source              NVML (nvidia-smi), 1 device(s)
    ================================================================
    Summary written to: powerlog_output.csv
    Samples written to: powerlog_output_samples.csv
@@ -71,17 +70,6 @@ job is covered:
 .. code-block:: bash
 
    powerlog --gpu 4 ./launcher ./my_program
-
-Forcing a backend
------------------
-
-``--measure`` selects the domains; ``--gpu-backend`` and ``--cpu-backend`` select
-which tool the reading comes from. Detection is automatic, but can be pinned:
-
-.. code-block:: bash
-
-   powerlog --gpu-backend amd ./my_program
-   powerlog --cpu-backend perf ./my_program
 
 Using the Python API
 --------------------

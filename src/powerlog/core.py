@@ -216,6 +216,8 @@ def measure_power(
     cpu = detect_cpu_backend(cpu_backend)
 
     result = MeasurementResult(command=command)
+    # Host identification is independent of whether energy can be measured.
+    result.cpu_model = cpu_model()
 
     if gpu is None:
         if gpu_backend in (None, "none", "off"):
@@ -251,7 +253,6 @@ def measure_power(
             )
     else:
         result.cpu_backend = cpu.describe()
-        result.cpu_model = cpu_model()
 
     # `perf` must decorate the child process; sysfs counters are read in-loop.
     run_command = cpu.wrap(command) if cpu is not None and cpu.wraps_command else command

@@ -25,10 +25,10 @@ examples:
   powerlog -m cpu ./my_cpu_program       CPU energy only
   powerlog -o run.csv ./matmul 2048      choose the output file name
   powerlog --gpu 4 ./multi_gpu_app       sum power over the first 4 GPUs
-  powerlog --gpu-backend amd ./matmul    read power from ROCm instead of NVML
 
-CPU and GPU energy are both measured by default. Any domain that is not
-available on this machine is reported as n/a instead of failing.
+CPU and GPU energy are both measured by default, and the power sources are
+detected automatically. Any domain that is not available on this machine is
+reported as n/a instead of failing.
 
 Powerlog measures the node it runs on; it does not aggregate across nodes.
 """
@@ -67,16 +67,7 @@ def build_parser():
         "--interval", type=float, default=DEFAULT_INTERVAL_S, metavar="SECONDS",
         help=f"sampling interval in seconds (default: {DEFAULT_INTERVAL_S})",
     )
-    parser.add_argument(
-        "--gpu-backend", default="auto",
-        choices=["auto", "nvidia", "amd", "intel"],
-        help="which GPU vendor tool to read power from (default: auto-detect)",
-    )
-    parser.add_argument(
-        "--cpu-backend", default="auto",
-        choices=["auto", "rapl-sysfs", "perf"],
-        help="which RAPL interface to read CPU energy from (default: auto-detect)",
-    )
+
     parser.add_argument(
         "--quiet", "-q", action="store_true",
         help="suppress the summary block",
@@ -127,9 +118,9 @@ def main(argv=None):
         print("\nerror: a program to run is required", file=sys.stderr)
         return 2
 
-    # --measure selects the domains; --*-backend selects how each is read.
-    gpu_backend = args.gpu_backend if args.measure in ("all", "gpu") else "none"
-    cpu_backend = args.cpu_backend if args.measure in ("all", "cpu") else "none"
+    # Power sources are always auto-detected; --measure picks the domains.
+    gpu_backend = "auto" if args.measure in ("all", "gpu") else "none"
+    cpu_backend = "auto" if args.measure in ("all", "cpu") else "none"
 
     try:
         result = measure_power(

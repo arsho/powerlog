@@ -36,8 +36,8 @@ SUMMARY_FIELDS = (
     "GPU Devices",
     "CPU Model",
     "GPU Model",
-    "CPU Backend",
-    "GPU Backend",
+    "CPU Source",
+    "GPU Source",
 )
 
 _NA = "n/a"
@@ -77,9 +77,22 @@ def format_summary(result, width=64):
     lines = [rule, "POWERLOG ENERGY SUMMARY".center(width), rule]
 
     lines.append(f"{'Command':<24}{' '.join(result.command)}")
-    lines.append(f"{'Exit code':<24}{result.return_code}")
     lines.append(f"{'Runtime (s)':<24}{result.total_time_s:.4f}")
-    lines.append(f"{'Samples':<24}{len(result.samples)}")
+    # Only surfaced on failure, where it signals the measurement is not valid.
+    if result.return_code != 0:
+        lines.append(f"{'Exit code':<24}{result.return_code}  (program failed)")
+
+    lines.append(f"{'CPU':<24}{result.cpu_model or 'unknown'}")
+    if result.gpu_models:
+        first = result.gpu_models[0]
+        if len(result.gpu_models) > 1 and len(set(result.gpu_models)) == 1:
+            lines.append(f"{'GPU':<24}{first} x{len(result.gpu_models)}")
+        else:
+            lines.append(f"{'GPU':<24}{first}")
+            for name in result.gpu_models[1:]:
+                lines.append(f"{'':<24}{name}")
+    else:
+        lines.append(f"{'GPU':<24}{'none detected'}")
     lines.append("-" * width)
 
     lines.append(f"{'Domain':<12}{'Energy (J)':>16}{'Share (%)':>12}{'Avg Power (W)':>16}")
@@ -109,24 +122,12 @@ def format_summary(result, width=64):
         )
 
     lines.append("-" * width)
-    if result.cpu_model:
-        lines.append(f"{'CPU':<24}{result.cpu_model}")
-    if result.gpu_models:
-        # Collapse identical devices: "NVIDIA A100 x4".
-        first = result.gpu_models[0]
-        if len(result.gpu_models) > 1 and len(set(result.gpu_models)) == 1:
-            lines.append(f"{'GPU':<24}{first} x{len(result.gpu_models)}")
-        elif len(result.gpu_models) > 1:
-            lines.append(f"{'GPU':<24}{first}")
-            for name in result.gpu_models[1:]:
-                lines.append(f"{'':<24}{name}")
-        else:
-            lines.append(f"{'GPU':<24}{first}")
-    lines.append(f"{'CPU backend':<24}{result.cpu_backend or 'not available'}")
+    lines.append(f"{'Samples':<24}{len(result.samples)}")
+    lines.append(f"{'CPU source':<24}{result.cpu_backend or 'not available'}")
     gpu_desc = result.gpu_backend or "not available"
     if result.gpu_backend and result.gpu_device_count:
-        gpu_desc += f" ({result.gpu_device_count} device(s))"
-    lines.append(f"{'GPU backend':<24}{gpu_desc}")
+        gpu_desc += f", {result.gpu_device_count} device(s)"
+    lines.append(f"{'GPU source':<24}{gpu_desc}")
 
     for note in result.notes:
         lines.append(f"  note: {note}")

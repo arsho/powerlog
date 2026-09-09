@@ -63,9 +63,9 @@ powerlog ./bin/matmul
                     POWERLOG ENERGY SUMMARY
 ================================================================
 Command                 ./bin/matmul
-Exit code               0
 Runtime (s)             12.4180
-Samples                 124
+CPU                     AMD EPYC 7532 32-Core Processor
+GPU                     NVIDIA A100-PCIE-40GB
 ----------------------------------------------------------------
 Domain            Energy (J)   Share (%)   Avg Power (W)
 ----------------------------------------------------------------
@@ -78,10 +78,9 @@ EDP (J*s)         38485.5262
 GPU power (W)           min 61.20 / max 249.80
 CPU power (W)           min 74.90 / max 79.30
 ----------------------------------------------------------------
-CPU                     AMD EPYC 7532 32-Core Processor
-GPU                     NVIDIA A100-PCIE-40GB
-CPU backend             CPU package (RAPL powercap sysfs), 2 package domain(s)
-GPU backend             NVIDIA GPU (nvidia-smi / NVML) (1 device(s))
+Samples                 124
+CPU source              RAPL powercap sysfs, 2 package domain(s)
+GPU source              NVML (nvidia-smi), 1 device(s)
 ================================================================
 Summary written to: powerlog_output.csv
 Samples written to: powerlog_output_samples.csv
@@ -127,12 +126,12 @@ powerlog --gpu 1 ./bin/nbody 131072 100
 
 ### Cross-vendor runs
 
-The backend is detected automatically, but it can be pinned:
+The power source is detected automatically, so the same command works on NVIDIA,
+AMD and Intel hardware:
 
 ```bash
-powerlog --gpu-backend nvidia ./bin/matmul      # NVML
-powerlog --gpu-backend amd    ./bin/matmul      # ROCm SMI
-powerlog --gpu-backend intel  ./bin/matmul_sycl # Level Zero via xpu-smi
+powerlog ./bin/matmul           # NVML or ROCm SMI, whichever is present
+powerlog ./bin/matmul_sycl      # same, for the SYCL build
 ```
 
 Check what is visible on the current machine:
