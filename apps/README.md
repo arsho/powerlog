@@ -114,12 +114,13 @@ Profile all apps at once:
 make run        # writes results/<app>.csv and results/<app>_samples.csv
 ```
 
-### Multi-GPU and MPI
+### Multi-GPU
 
-Sum power over the first four GPUs of a node:
+The example apps use a single GPU. On a multi-GPU node, `--gpu N` limits how many
+devices are summed:
 
 ```bash
-powerlog --gpu 4 mpiexec -n 4 ./bin/nbody 131072 100
+powerlog --gpu 1 ./bin/nbody 131072 100
 ```
 
 ### Cross-vendor runs

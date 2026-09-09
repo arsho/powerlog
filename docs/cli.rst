@@ -49,13 +49,13 @@ GPU only, no files written:
 
 .. code-block:: bash
 
-   powerlog --no-cpu --no-csv ./matmul 2048
+   powerlog -m gpu --no-csv ./matmul 2048
 
-Four GPUs under MPI:
+Limit sampling to the first four GPUs of the node:
 
 .. code-block:: bash
 
-   powerlog --gpu 4 mpiexec -n 4 ./nbody 131072
+   powerlog --gpu 4 ./nbody 131072
 
 Pin the vendor backend:
 

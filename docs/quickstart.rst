@@ -57,21 +57,24 @@ Selecting domains and devices
 
 .. code-block:: bash
 
-   powerlog --no-cpu ./my_program           # GPU energy only
-   powerlog --no-gpu ./my_program           # CPU energy only
+   powerlog -m gpu ./my_program             # GPU energy only
+   powerlog -m cpu ./my_program             # CPU energy only
    powerlog --gpu 4 ./my_program            # sum the first 4 GPUs
    powerlog --interval 0.05 ./my_program    # sample every 50 ms
 
-Under MPI, wrap the launcher so that the whole job is covered:
+Powerlog measures the node it runs on and does not aggregate across nodes. If
+your program is launched through a wrapper, wrap the launcher so that the whole
+job is covered:
 
 .. code-block:: bash
 
-   powerlog --gpu 4 mpiexec -n 4 ./my_program
+   powerlog --gpu 4 ./launcher ./my_program
 
 Forcing a backend
 -----------------
 
-Detection is automatic, but a backend can be pinned:
+``--measure`` selects the domains; ``--gpu-backend`` and ``--cpu-backend`` select
+which tool the reading comes from. Detection is automatic, but can be pinned:
 
 .. code-block:: bash
 

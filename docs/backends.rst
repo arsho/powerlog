@@ -71,7 +71,14 @@ From the command line:
 
    powerlog --gpu-backend amd ./my_program
    powerlog --cpu-backend perf ./my_program
-   powerlog --gpu-backend none ./my_program     # same as --no-gpu
+
+To choose *which domains* are measured rather than which tool reads them, use
+``-m/--measure``:
+
+.. code-block:: bash
+
+   powerlog -m gpu ./my_program                 # GPU only
+   powerlog -m cpu ./my_program                 # CPU only
 
 From Python:
 

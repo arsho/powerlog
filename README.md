@@ -24,12 +24,13 @@ unmodified program.
 
 [Overview](#overview) -
 [Features](#features) -
+[Dependencies](#dependencies) -
 [Installation](#installation) -
-[Quick Start](#quick-start) -
+[Usage](#usage) -
 [Documentation](#documentation) -
 [Examples](#examples) -
-[Get Help](#get-help) -
-[Contribute](#contribute) -
+[Contributing](#contributing) -
+[References](#references) -
 [License](#license) -
 [Citation](#citation)
 
@@ -37,20 +38,44 @@ unmodified program.
 
 ## Overview
 
-Powerlog wraps any command and reports the CPU and GPU energy it consumed,
-sampling NVML and RAPL in lockstep on a shared timeline.
+Powerlog runs a command and reports how much energy it used, reading CPU power
+and GPU power at the same instants so the two can be compared and added up.
 
 ## Features
 
-- **Heterogeneous** -- CPU package and GPU energy on one timeline, not GPU alone
-- **Portable** -- NVIDIA (NVML), AMD (ROCm SMI), Intel/SYCL (Level Zero), RAPL
-- **Non-intrusive** -- unmodified binaries, no source or kernel instrumentation
-- **Whole-application** -- covers I/O, transfers, launches and synchronization
-- **Low overhead** -- out-of-process sampling, buffered, flushed at exit
-- **Multi-GPU** -- per-device power columns, MPI-friendly
-- **Simple** -- one command, no root on most systems
-- **Robust** -- unmeasurable domains report `n/a` instead of failing
-- **Scriptable** -- CSV summary and full power trace, program exit status preserved
+- **Heterogeneous** -- reports CPU and GPU energy separately and combined
+- **Portable** -- NVIDIA (NVML), AMD (ROCm SMI), Intel/SYCL (Level Zero), CPU RAPL
+- **Non-intrusive** -- runs unmodified binaries, no recompilation
+- **Whole-application** -- covers I/O, transfers, kernel launches, synchronization
+- **Low overhead** -- samples from a separate process, writes results at exit
+- **Multi-GPU** -- one power column per device on a node
+- **Simple** -- a single command, no root on most systems
+- **Robust** -- domains it cannot read are marked `n/a` instead of failing
+- **Scriptable** -- CSV output, and the program's exit status is preserved
+
+## Dependencies
+
+Python 3.8 or newer. No Python packages are required -- Powerlog uses only the
+standard library.
+
+Everything else is optional and detected at runtime. Install only what matches
+your hardware; whatever is missing is reported as `n/a`.
+
+| Domain | Provided by | Requirement |
+| ------ | ----------- | ----------- |
+| NVIDIA GPU | NVIDIA driver | `nvidia-smi` on `PATH` |
+| AMD GPU | ROCm | `rocm-smi` or `amd-smi` on `PATH` |
+| Intel GPU | Intel XPU Manager / oneAPI | `xpu-smi` on `PATH` |
+| CPU | Linux RAPL | readable `/sys/class/powercap`, or `perf` |
+
+CPU measurement is Linux only. If it is unavailable, enable one of:
+
+```bash
+sudo chmod -R a+r /sys/class/powercap      # powercap sysfs
+sudo sysctl kernel.perf_event_paranoid=-1  # perf
+```
+
+Powerlog measures the node it runs on. It does not aggregate across nodes.
 
 ## Installation
 
@@ -58,22 +83,13 @@ sampling NVML and RAPL in lockstep on a shared timeline.
 pip install powerlog
 ```
 
-Requires Python 3.8+. Vendor tooling is optional and detected at runtime:
-
-| Domain | Requirement |
-| ------ | ----------- |
-| NVIDIA GPU | `nvidia-smi` on `PATH` |
-| AMD GPU | `rocm-smi` or `amd-smi` on `PATH` |
-| Intel GPU | `xpu-smi` on `PATH` |
-| CPU | Linux RAPL via `/sys/class/powercap` or `perf` |
-
-Check what is visible on your machine:
+Check which power sources are visible on your machine:
 
 ```bash
 powerlog --list-backends
 ```
 
-## Quick Start
+## Usage
 
 Measure a program. CPU and GPU are both measured by default:
 
@@ -102,17 +118,28 @@ EDP (J*s)         38485.5262
 
 Two CSVs are written: a one-row summary and the full power trace.
 
-### Common options
+### Choosing what to measure
 
 ```bash
-powerlog --output run.csv ./my_program     # name the output (default: powerlog_output.csv)
-powerlog --no-csv ./my_program             # print only, write nothing
-powerlog --gpu 4 mpiexec -n 4 ./my_program # sum the first 4 GPUs
-powerlog --interval 0.05 ./my_program      # sample every 50 ms
-powerlog --no-cpu ./my_program             # GPU only
-powerlog --gpu-backend amd ./my_program    # pin the vendor backend
-powerlog --list-backends                   # show detected power sources
+powerlog ./my_program                    # CPU and GPU (default)
+powerlog -m gpu ./my_program             # GPU only
+powerlog -m cpu ./my_program             # CPU only
 ```
+
+### Other options
+
+```bash
+powerlog -o run.csv ./my_program         # name the output (default: powerlog_output.csv)
+powerlog --no-csv ./my_program           # print only, write nothing
+powerlog --gpu 4 ./my_program            # sum only the first 4 GPUs
+powerlog --interval 0.05 ./my_program    # sample every 50 ms
+powerlog --gpu-backend amd ./my_program  # read from ROCm instead of NVML
+powerlog --list-backends                 # show detected power sources
+```
+
+`--gpu-backend` and `--cpu-backend` select *which tool* the reading comes from,
+not which domain is measured -- use `-m/--measure` for that. Both default to
+auto-detection.
 
 Powerlog exits with the profiled program's exit status. See the
 [command line reference](https://powerlog.readthedocs.io/en/latest/cli.html) for
@@ -149,16 +176,33 @@ Datalog engines -- [MNMGDatalog](https://github.com/harp-lab/MNMGDatalog),
 seven graphs. It ships the harness, the analysis scripts and the collected
 results; the engines themselves are cloned from their own repositories.
 
-## Get Help
+## Contributing
 
-Ask a question or report a bug on the
+Questions, bug reports and patches are all welcome on the
 [issue tracker](https://github.com/arsho/powerlog/issues).
 
-## Contribute
+For code changes, open an issue first to discuss anything substantial, then send
+a pull request against `main`. Adding support for another power source means
+subclassing `PowerSampler` or `EnergyCounter` in `src/powerlog/backends.py`; see
+[Backends](https://powerlog.readthedocs.io/en/latest/backends.html).
 
-Contributions are welcome. Please open an issue to discuss substantial changes,
-then submit a pull request against `main`. See [Changelog.md](Changelog.md) for
-release history.
+Release history is in [Changelog.md](Changelog.md).
+
+## References
+
+Power and energy interfaces:
+
+- [NVIDIA Management Library (NVML)](https://developer.nvidia.com/management-library-nvml)
+- [ROCm SMI](https://github.com/ROCm/rocm_smi_lib)
+- [Intel XPU Manager](https://github.com/intel/xpumanager)
+- [Linux powercap / RAPL](https://docs.kernel.org/power/powercap/powercap.html)
+- [perf-stat](https://man7.org/linux/man-pages/man1/perf-stat.1.html)
+
+Related tooling:
+
+- [NVIDIA Nsight Compute](https://developer.nvidia.com/nsight-compute) -- kernel-level counters
+- [LIKWID](https://github.com/RRZE-HPC/likwid) -- CPU performance counters and RAPL
+- [PAPI](https://icl.utk.edu/papi/) -- portable performance counter API
 
 ## License
 

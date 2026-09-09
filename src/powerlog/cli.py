@@ -20,14 +20,17 @@ __all__ = ["build_parser", "main"]
 
 _EPILOG = """\
 examples:
-  powerlog ./matmul 2048                 measure CPU+GPU energy of a program
+  powerlog ./matmul 2048                 measure CPU and GPU energy
+  powerlog -m gpu ./matmul 2048          GPU energy only
+  powerlog -m cpu ./my_cpu_program       CPU energy only
   powerlog -o run.csv ./matmul 2048      choose the output file name
-  powerlog --gpu 4 mpiexec -n 4 ./app    sum power over the first 4 GPUs
-  powerlog --gpu-backend amd ./app       force the ROCm backend
-  powerlog --no-cpu ./app                GPU energy only
+  powerlog --gpu 4 ./multi_gpu_app       sum power over the first 4 GPUs
+  powerlog --gpu-backend amd ./matmul    read power from ROCm instead of NVML
 
-CPU and GPU energy are both measured by default; any domain that is not
+CPU and GPU energy are both measured by default. Any domain that is not
 available on this machine is reported as n/a instead of failing.
+
+Powerlog measures the node it runs on; it does not aggregate across nodes.
 """
 
 
@@ -53,6 +56,10 @@ def build_parser():
         help="print the summary but do not write any CSV file",
     )
     parser.add_argument(
+        "-m", "--measure", default="all", choices=["all", "cpu", "gpu"],
+        help="which domains to measure: all (default), cpu only, or gpu only",
+    )
+    parser.add_argument(
         "--gpu", type=int, default=None, metavar="N",
         help="sample only the first N GPUs (default: all detected)",
     )
@@ -62,19 +69,13 @@ def build_parser():
     )
     parser.add_argument(
         "--gpu-backend", default="auto",
-        choices=["auto", "nvidia", "amd", "intel", "none"],
-        help="GPU power source (default: auto)",
+        choices=["auto", "nvidia", "amd", "intel"],
+        help="which GPU vendor tool to read power from (default: auto-detect)",
     )
     parser.add_argument(
         "--cpu-backend", default="auto",
-        choices=["auto", "rapl-sysfs", "perf", "none"],
-        help="CPU energy source (default: auto)",
-    )
-    parser.add_argument(
-        "--no-cpu", action="store_true", help="disable CPU energy measurement",
-    )
-    parser.add_argument(
-        "--no-gpu", action="store_true", help="disable GPU energy measurement",
+        choices=["auto", "rapl-sysfs", "perf"],
+        help="which RAPL interface to read CPU energy from (default: auto-detect)",
     )
     parser.add_argument(
         "--quiet", "-q", action="store_true",
@@ -126,8 +127,9 @@ def main(argv=None):
         print("\nerror: a program to run is required", file=sys.stderr)
         return 2
 
-    gpu_backend = "none" if args.no_gpu else args.gpu_backend
-    cpu_backend = "none" if args.no_cpu else args.cpu_backend
+    # --measure selects the domains; --*-backend selects how each is read.
+    gpu_backend = args.gpu_backend if args.measure in ("all", "gpu") else "none"
+    cpu_backend = args.cpu_backend if args.measure in ("all", "cpu") else "none"
 
     try:
         result = measure_power(

@@ -46,7 +46,10 @@ Two recursive fixed-point queries:
 * **SG** -- same generation, on `ca_hepth`, `fe_body`, `fe_sphere`,
   `loc-brightkite`.
 
-See `datasets/datasets.csv` for sources and graph sizes.
+The graphs ship inside the engine repositories, already converted to each
+engine's input format -- there is nothing to download. See
+[datasets/README.md](datasets/README.md) for the per-engine file mapping and
+`datasets/datasets.csv` for graph sizes and upstream provenance.
 
 ## Measurement setup
 
@@ -68,14 +71,7 @@ Metrics reported:
 
 ## Reproducing
 
-### 1. Get the datasets
-
-```bash
-cd datasets
-./fetch_datasets.sh
-```
-
-### 2. Clone and build the engines
+### 1. Clone and build the engines
 
 Clone the three repositories side by side. `harness/run_cpu_gpu_energy.sh`
 expects them at `$HOME` by default; override `GDLOG` and `BJOIN` at the top of
@@ -107,7 +103,11 @@ conda install -c rapidsai -c conda-forge -c nvidia cudf
 Requirements: CUDA 12.x, an MPI implementation, CMake 3.18+, and RAPIDS cuDF for
 the DataFrame baseline.
 
-### 3. Run the energy sweep
+The graphs come with these checkouts, so there is nothing to download. BJoin is
+the one exception: `batch_joins` ships no `data/` directory, so copy its inputs
+across as described in [datasets/README.md](datasets/README.md).
+
+### 2. Run the energy sweep
 
 ```bash
 # quick sanity check of the environment and paths
@@ -146,7 +146,7 @@ powerlog --output results/cpugpu/tc/sf_cuDF.csv \
 
 Swap `tc` for `sg` (and `TC` for `SG`) to run the Same Generation query.
 
-### 4. Collect the hardware counters
+### 3. Collect the hardware counters
 
 Instruction counts come from a separate Nsight Compute run, because kernel replay
 perturbs timing (but not the instruction count):
@@ -158,7 +158,7 @@ bash harness/run_ncu_instructions.sh
 See [COUNTERS_REPRODUCIBILITY.md](COUNTERS_REPRODUCIBILITY.md) for the exact
 counter definitions and caveats.
 
-### 5. Build the tables
+### 4. Build the tables
 
 ```bash
 python analysis/cpu_gpu_energy_tables.py results/cpugpu/tc
