@@ -83,6 +83,17 @@ Powerlog measures the node it runs on. It does not aggregate across nodes.
 pip install powerlog
 ```
 
+### From this repository
+
+```bash
+git clone https://github.com/arsho/powerlog.git
+pip install -e powerlog
+```
+
+`-e` installs in editable mode, so the `powerlog` command tracks your working
+copy. To run it without installing at all, use
+`PYTHONPATH=powerlog/src python -m powerlog ...`.
+
 Check which power sources are visible on your machine:
 
 ```bash
@@ -133,17 +144,18 @@ powerlog -o run.csv ./my_program         # name the output (default: powerlog_ou
 powerlog --no-csv ./my_program           # print only, write nothing
 powerlog --gpu 4 ./my_program            # sum only the first 4 GPUs
 powerlog --interval 0.05 ./my_program    # sample every 50 ms
-powerlog --gpu-backend amd ./my_program  # read from ROCm instead of NVML
 powerlog --list-backends                 # show detected power sources
 ```
-
-`--gpu-backend` and `--cpu-backend` select *which tool* the reading comes from,
-not which domain is measured -- use `-m/--measure` for that. Both default to
-auto-detection.
 
 Powerlog exits with the profiled program's exit status. See the
 [command line reference](https://powerlog.readthedocs.io/en/latest/cli.html) for
 the full list.
+
+Power sources are detected automatically and you should not normally need to
+choose one. The exception is a machine with GPUs from more than one vendor, such
+as an Intel integrated GPU alongside a discrete NVIDIA card: auto-detection
+prefers NVIDIA, so profiling a SYCL program on the integrated GPU needs
+`--gpu-backend intel`.
 
 ## Documentation
 
@@ -190,19 +202,13 @@ Release history is in [Changelog.md](Changelog.md).
 
 ## References
 
-Power and energy interfaces:
+The power and energy interfaces Powerlog reads from:
 
 - [NVIDIA Management Library (NVML)](https://developer.nvidia.com/management-library-nvml)
 - [ROCm SMI](https://github.com/ROCm/rocm_smi_lib)
 - [Intel XPU Manager](https://github.com/intel/xpumanager)
 - [Linux powercap / RAPL](https://docs.kernel.org/power/powercap/powercap.html)
 - [perf-stat](https://man7.org/linux/man-pages/man1/perf-stat.1.html)
-
-Related tooling:
-
-- [NVIDIA Nsight Compute](https://developer.nvidia.com/nsight-compute) -- kernel-level counters
-- [LIKWID](https://github.com/RRZE-HPC/likwid) -- CPU performance counters and RAPL
-- [PAPI](https://icl.utk.edu/papi/) -- portable performance counter API
 
 ## License
 

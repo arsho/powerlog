@@ -32,6 +32,8 @@ default, so no flags are required:
    GPU power (W)           min 61.20 / max 249.80
    CPU power (W)           min 74.90 / max 79.30
    ----------------------------------------------------------------
+   CPU                     AMD EPYC 7532 32-Core Processor
+   GPU                     NVIDIA A100-PCIE-40GB
    CPU backend             CPU package (RAPL powercap sysfs), 2 package domain(s)
    GPU backend             NVIDIA GPU (nvidia-smi / NVML) (1 device(s))
    ================================================================

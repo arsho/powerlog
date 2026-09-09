@@ -65,6 +65,12 @@ samples file stays empty.
 Selecting a backend
 -------------------
 
+Detection is automatic and you should not normally need to choose a backend. The
+case that does require it is a machine with GPUs from more than one vendor, for
+example an Intel integrated GPU alongside a discrete NVIDIA card: probing order
+prefers NVIDIA, so profiling a SYCL program on the integrated GPU needs
+``--gpu-backend intel``.
+
 From the command line:
 
 .. code-block:: bash

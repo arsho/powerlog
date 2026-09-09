@@ -47,6 +47,10 @@ One header row and one data row, with the energy broken down by domain.
      - Energy-delay product.
    * - ``GPU Devices``
      - Number of GPUs sampled.
+   * - ``CPU Model``
+     - Host CPU product name.
+   * - ``GPU Model``
+     - GPU product name(s), separated by ``;`` if they differ.
    * - ``CPU Backend``
      - Description of the CPU source used.
    * - ``GPU Backend``

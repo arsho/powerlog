@@ -30,6 +30,8 @@ __all__ = [
     "XpuSmiSampler",
     "RaplSysfsCounter",
     "PerfRaplCounter",
+    "cpu_model",
+    "parse_perf_energy",
     "GPU_BACKENDS",
     "CPU_BACKENDS",
     "detect_gpu_backend",
@@ -81,6 +83,13 @@ class PowerSampler:
         Returns an empty list when no reading could be obtained.
         """
         raise NotImplementedError
+
+    def device_names(self):
+        """Return the product name of each device, e.g. ``["NVIDIA A100"]``.
+
+        Returns an empty list when the names cannot be determined.
+        """
+        return []
 
     def read_total_power(self):
         """Return the summed power (W) across the selected devices."""
@@ -163,6 +172,13 @@ class NvidiaSmiSampler(PowerSampler):
                 values.append(0.0)
         return values
 
+    def device_names(self):
+        out = _run(["nvidia-smi", "--query-gpu=name",
+                    "--format=csv,noheader"])
+        if out is None:
+            return []
+        return [line.strip() for line in out.strip().splitlines() if line.strip()]
+
 
 class RocmSmiSampler(PowerSampler):
     """AMD GPU power via ``amd-smi`` or ``rocm-smi`` (ROCm SMI)."""
@@ -213,6 +229,23 @@ class RocmSmiSampler(PowerSampler):
                     continue
         return values
 
+    def device_names(self):
+        tool = self._tool()
+        if tool is None:
+            return []
+        if tool == "amd-smi":
+            out = _run(["amd-smi", "static", "-a", "--csv"])
+        else:
+            out = _run(["rocm-smi", "--showproductname", "--csv"])
+        if out is None:
+            return []
+        names = []
+        for line in out.strip().splitlines()[1:]:
+            parts = [p.strip() for p in line.split(",") if p.strip()]
+            if len(parts) >= 2:
+                names.append(parts[-1])
+        return names
+
 
 class XpuSmiSampler(PowerSampler):
     """Intel GPU power via ``xpu-smi`` (Level Zero / SYCL devices)."""
@@ -251,6 +284,19 @@ class XpuSmiSampler(PowerSampler):
             except ValueError:
                 continue  # header row
         return values
+
+    def device_names(self):
+        tool = self._tool()
+        if tool is None:
+            return []
+        out = _run([tool, "discovery"])
+        if out is None:
+            return []
+        names = []
+        for line in out.splitlines():
+            if "Device Name" in line:
+                names.append(line.split("|")[-1].strip())
+        return names
 
 
 #: GPU backends in auto-detection priority order.
@@ -389,6 +435,26 @@ class PerfRaplCounter(EnergyCounter):
             pass
         self._output_path = None
         return energy
+
+
+def cpu_model():
+    """Return the host CPU product name, or ``None`` if it cannot be determined.
+
+    Reads ``/proc/cpuinfo`` on Linux and falls back to ``sysctl`` on macOS.
+    """
+    try:
+        with open("/proc/cpuinfo") as handle:
+            for line in handle:
+                if line.startswith(("model name", "Model name")):
+                    return line.split(":", 1)[1].strip()
+    except OSError:
+        pass
+    out = _run(["sysctl", "-n", "machdep.cpu.brand_string"])
+    if out and out.strip():
+        return out.strip()
+    import platform
+
+    return platform.processor() or None
 
 
 def parse_perf_energy(path):

@@ -34,6 +34,8 @@ SUMMARY_FIELDS = (
     "Max GPU Power (W)",
     "EDP (J*s)",
     "GPU Devices",
+    "CPU Model",
+    "GPU Model",
     "CPU Backend",
     "GPU Backend",
 )
@@ -107,6 +109,19 @@ def format_summary(result, width=64):
         )
 
     lines.append("-" * width)
+    if result.cpu_model:
+        lines.append(f"{'CPU':<24}{result.cpu_model}")
+    if result.gpu_models:
+        # Collapse identical devices: "NVIDIA A100 x4".
+        first = result.gpu_models[0]
+        if len(result.gpu_models) > 1 and len(set(result.gpu_models)) == 1:
+            lines.append(f"{'GPU':<24}{first} x{len(result.gpu_models)}")
+        elif len(result.gpu_models) > 1:
+            lines.append(f"{'GPU':<24}{first}")
+            for name in result.gpu_models[1:]:
+                lines.append(f"{'':<24}{name}")
+        else:
+            lines.append(f"{'GPU':<24}{first}")
     lines.append(f"{'CPU backend':<24}{result.cpu_backend or 'not available'}")
     gpu_desc = result.gpu_backend or "not available"
     if result.gpu_backend and result.gpu_device_count:
@@ -145,6 +160,8 @@ def write_summary_csv(path, result):
         _num(result.max_gpu_power_w, 2),
         _num(result.energy_delay_product),
         result.gpu_device_count,
+        result.cpu_model or _NA,
+        "; ".join(dict.fromkeys(result.gpu_models)) or _NA,
         result.cpu_backend or _NA,
         result.gpu_backend or _NA,
     ]

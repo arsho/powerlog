@@ -11,7 +11,7 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 
-from .backends import detect_cpu_backend, detect_gpu_backend
+from .backends import cpu_model, detect_cpu_backend, detect_gpu_backend
 
 __all__ = ["Sample", "MeasurementResult", "measure_power", "DEFAULT_INTERVAL_S"]
 
@@ -66,6 +66,11 @@ class MeasurementResult:
     gpu_backend: str | None = None
     #: Number of GPU devices sampled.
     gpu_device_count: int = 0
+
+    #: Host CPU product name, e.g. ``"AMD EPYC 7532 32-Core Processor"``.
+    cpu_model: str | None = None
+    #: Product name of each GPU sampled, e.g. ``["NVIDIA A100-PCIE-40GB"]``.
+    gpu_models: list = field(default_factory=list)
 
     #: Collected samples on the shared timeline.
     samples: list = field(default_factory=list)
@@ -169,6 +174,8 @@ class MeasurementResult:
             "cpu_backend": self.cpu_backend,
             "gpu_backend": self.gpu_backend,
             "gpu_device_count": self.gpu_device_count,
+            "cpu_model": self.cpu_model,
+            "gpu_models": list(self.gpu_models),
         }
 
 
@@ -227,6 +234,8 @@ def measure_power(
         result.gpu_device_count = (
             min(len(warmup), device_count) if device_count else len(warmup)
         )
+        names = gpu.device_names()
+        result.gpu_models = names[:result.gpu_device_count] if names else []
 
     if cpu is None:
         if cpu_backend in (None, "none", "off"):
@@ -242,6 +251,7 @@ def measure_power(
             )
     else:
         result.cpu_backend = cpu.describe()
+        result.cpu_model = cpu_model()
 
     # `perf` must decorate the child process; sysfs counters are read in-loop.
     run_command = cpu.wrap(command) if cpu is not None and cpu.wraps_command else command

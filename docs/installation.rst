@@ -22,6 +22,13 @@ From source
    source .venv/bin/activate
    pip install -e .
 
+``-e`` installs in editable mode, so the ``powerlog`` command tracks your working
+copy. To run straight from a checkout without installing anything:
+
+.. code-block:: bash
+
+   PYTHONPATH=src python -m powerlog ./my_program
+
 Vendor requirements
 -------------------
 
