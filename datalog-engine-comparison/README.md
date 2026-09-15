@@ -31,7 +31,7 @@ repository; this directory only holds the measurement harness and the results.
 | ------------- | ------------------------------------------------- | -------------------------------- | ------ |
 | `MNMGDatalog` | Radix hash join, open addressing + linear probing | GPU hash table                   | [harp-lab/MNMGDatalog](https://github.com/harp-lab/MNMGDatalog) (`tc.cu`, `sg.cu`) |
 | `GPULog`      | Sorted hash join                                  | Hash-indexed sorted array (HISA) | [harp-lab/gdlog](https://github.com/harp-lab/gdlog) |
-| `BJoin`       | Batch join with buffer reuse (RMM)                | HISA + memory pooling            | [harp-lab/batch_joins](https://github.com/harp-lab/batch_joins) |
+| `BJoin`       | Batch join with buffer reuse (RMM)                | HISA + memory pooling            | [harp-lab/batch_joins](https://github.com/harp-lab/batch_joins) (release pending) |
 | `INLJoin`     | Index nested-loop join                            | GPU struct array                 | [harp-lab/MNMGDatalog](https://github.com/harp-lab/MNMGDatalog) (`tc_nl.cu`, `sg_nl.cu`) |
 | `cuDF`        | DataFrame merge (RAPIDS)                          | Columnar DataFrame               | [harp-lab/MNMGDatalog](https://github.com/harp-lab/MNMGDatalog) (`related/cudf_programs/`) |
 
@@ -81,8 +81,13 @@ the script if you put them elsewhere.
 cd ~
 git clone https://github.com/harp-lab/MNMGDatalog.git
 git clone https://github.com/harp-lab/gdlog.git
-git clone https://github.com/harp-lab/batch_joins.git
+git clone https://github.com/harp-lab/batch_joins.git   # release pending
 ```
+
+`batch_joins` is not public yet, so that last clone will fail for now. The
+other four engines are unaffected: skip the BJoin steps below and the harness
+still reproduces everything else. Its measured results are already in
+`results/`.
 
 Build each one following its own README. In outline:
 
@@ -227,8 +232,9 @@ including CPU fractions and instruction efficiency, is in
 * **GPULog** (`gdlog`) -- <https://github.com/harp-lab/gdlog>
   GPU Datalog engine built on a hash-indexed sorted array (HISA).
 * **BJoin** (`batch_joins`) -- <https://github.com/harp-lab/batch_joins>
-  Batch-join variant of GPULog with GPU buffer reuse via RAPIDS Memory Manager.
-* **RAPIDS cuDF** -- <https://github.com/rapidsai/cudf>
+  (release pending) Batch-join variant of GPULog with GPU buffer reuse via
+  RAPIDS Memory Manager.
+* **RAPIDS cuDF** -- <https://github.com/NVIDIA/cudf>
   GPU DataFrame library providing the `merge`-based baseline.
 
 ### Tooling

@@ -1,5 +1,7 @@
-sphinx>=7.0
+# Upper bounds keep a new major release of a docs dependency from turning
+# fail_on_warning (see .readthedocs.yaml) into a surprise build failure.
+sphinx>=7.0,<10
 furo>=2024.1.29
-sphinx-copybutton>=0.5
-sphinx-argparse>=0.4
-myst-parser>=2.0
+sphinx-copybutton>=0.5,<1
+sphinx-argparse>=0.4,<1
+myst-parser>=2.0,<6

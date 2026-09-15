@@ -12,7 +12,7 @@ power in lockstep until it exits, reporting a per-domain energy breakdown.
           f"(cpu {result.cpu_energy_j:.1f} J, gpu {result.gpu_energy_j:.1f} J)")
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 from .backends import (
     EnergyCounter,
@@ -22,7 +22,13 @@ from .backends import (
     detect_cpu_backend,
     detect_gpu_backend,
 )
-from .core import DEFAULT_INTERVAL_S, MeasurementResult, Sample, measure_power
+from .core import (
+    DEFAULT_INTERVAL_S,
+    MeasurementResult,
+    Sample,
+    measure_power,
+    resolve_program,
+)
 from .report import (
     DEFAULT_OUTPUT,
     format_summary,
@@ -34,6 +40,7 @@ from .report import (
 __all__ = [
     "__version__",
     "measure_power",
+    "resolve_program",
     "MeasurementResult",
     "Sample",
     "DEFAULT_INTERVAL_S",

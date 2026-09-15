@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.1.1
+
+Follow-up to 0.1.0, fixing a CPU backend that could advertise itself without
+being able to measure, and making the example applications findable and
+runnable from the documentation alone.
+
+### Fixed
+- `perf` is no longer reported as an available CPU backend unless it actually
+  returns a Joules value. Availability was previously inferred from the event
+  name appearing in perf's output, which several perf versions also do inside
+  their permission-denied message; `--list-backends` could therefore list
+  `perf` on a machine where every run came back with no CPU energy.
+- The program is resolved before measurement starts, so an unrunnable command
+  is reported by Powerlog instead of by the wrapper. Previously, with the
+  `perf` backend active, `powerlog matmul 1024 10` surfaced as perf's
+  `Workload failed: No such file or directory` and exit status 255, with an
+  energy summary for a program that never ran.
+- `perf stat` output is parsed in either locale, so a comma decimal separator
+  no longer inflates the reading, and `<not supported>` / `<not counted>`
+  counters are treated as missing rather than as a parse failure.
+- The note printed when `perf` returns no energy now distinguishes a workload
+  that failed from a permissions problem, and says what to try.
+
+### Added
+- `powerlog.resolve_program()`, the pre-flight executable check, is public.
+- Exit status `127` when the program is not found and `126` when it is found
+  but not executable, following the usual shell convention.
+- `--list-backends` explains what to do when a domain is empty, and flags that
+  `perf` yields no CPU power trace.
+- A summary note when a run produced fewer than ten power samples, where the
+  integrated GPU energy is mostly the idle floor and process start-up rather
+  than the workload.
+- Documentation: an
+  [Example Applications](https://powerlog.readthedocs.io/en/latest/apps.html)
+  page covering every app, both of its parameters, the exact command to run
+  each one, and the fact that `pip install powerlog` does not ship them.
+
+### Changed
+- The `perf` backend describes itself as "total only (no CPU power trace)" in
+  the summary.
+- The documentation is now written in Markdown (MyST) throughout, matching this
+  changelog and the repository's other prose; the reStructuredText sources have
+  been converted.
+- BJoin is marked "release pending" wherever it is linked, since
+  `harp-lab/batch_joins` is not public yet.
+
 ## 0.1.0
 
 Powerlog now measures CPU and GPU energy together by default and reports a
@@ -20,8 +66,8 @@ per-domain breakdown.
   `write_samples_csv()` and the backend discovery helpers.
 - Pluggable backend classes `PowerSampler` and `EnergyCounter`.
 - `--list-backends` to show the power sources detected on the current machine.
-- `--interval`, `--gpu-backend`, `--cpu-backend`, `--no-cpu`, `--no-gpu`,
-  `--no-csv`, `--quiet` and `--version` options.
+- `-m/--measure` to pick the domains, plus `--interval`, `--gpu`, `--no-csv`,
+  `--quiet` and `--version` options.
 - Documentation site built with Sphinx and published on Read the Docs.
 - `apps/`: example GPU programs (`vecadd`, `matmul`, `gemm`, `reduction`,
   `stencil`, `nbody`) that build for NVIDIA and AMD, plus SYCL ports.

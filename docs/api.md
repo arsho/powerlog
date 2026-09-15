@@ -1,30 +1,32 @@
-Python API Reference
-====================
+# Python API Reference
 
-.. currentmodule:: powerlog
+```{currentmodule} powerlog
+```
 
-Everything listed here is importable directly from the ``powerlog`` package.
+Everything listed here is importable directly from the `powerlog` package.
 
-.. autosummary::
-   :nosignatures:
+```{autosummary}
+:nosignatures:
 
-   measure_power
-   MeasurementResult
-   Sample
-   format_summary
-   print_summary
-   write_summary_csv
-   write_samples_csv
-   detect_gpu_backend
-   detect_cpu_backend
-   available_gpu_backends
-   available_cpu_backends
-   PowerSampler
-   EnergyCounter
+measure_power
+MeasurementResult
+Sample
+resolve_program
+format_summary
+print_summary
+write_summary_csv
+write_samples_csv
+detect_gpu_backend
+detect_cpu_backend
+available_gpu_backends
+available_cpu_backends
+PowerSampler
+EnergyCounter
+```
 
-Measurement
------------
+## Measurement
 
+```{eval-rst}
 .. autofunction:: powerlog.measure_power
 
 .. autoclass:: powerlog.MeasurementResult
@@ -37,33 +39,39 @@ Measurement
    :undoc-members:
    :member-order: bysource
 
-Reporting
----------
+.. autofunction:: powerlog.resolve_program
+```
 
+## Reporting
+
+```{eval-rst}
 .. automodule:: powerlog.report
    :members:
    :undoc-members:
    :member-order: bysource
+```
 
-Backends
---------
+## Backends
 
+```{eval-rst}
 .. automodule:: powerlog.backends
    :members:
    :undoc-members:
    :member-order: bysource
    :show-inheritance:
+```
 
-Command line
-------------
+## Command line
 
+```{eval-rst}
 .. automodule:: powerlog.cli
    :members:
    :undoc-members:
+```
 
-Constants
----------
+## Constants
 
+```{eval-rst}
 .. autodata:: powerlog.DEFAULT_INTERVAL_S
    :no-value:
 
@@ -74,3 +82,10 @@ Constants
 
    File name used when ``--output`` is not supplied
    (``"powerlog_output.csv"``).
+
+.. autodata:: powerlog.core.MIN_RELIABLE_SAMPLES
+   :no-value:
+
+   Sample count below which a run is flagged as too short to integrate
+   (``10``).
+```

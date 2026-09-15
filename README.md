@@ -100,6 +100,27 @@ Check which power sources are visible on your machine:
 powerlog --list-backends
 ```
 
+### What `pip install` includes
+
+The wheel on PyPI carries the measurement tool only. The example GPU
+applications are C++/CUDA sources that must be compiled for your hardware, so
+they are not installed; clone the repository to build them.
+
+| Content | `pip install powerlog` | `git clone` |
+| ------- | ---------------------- | ----------- |
+| `powerlog` command and Python API | yes | yes |
+| [`apps/`](apps/) example GPU programs | no | yes |
+| [`datalog-engine-comparison/`](datalog-engine-comparison/) case study | no | yes |
+
+A typical first session therefore uses both:
+
+```bash
+pip install powerlog
+git clone https://github.com/arsho/powerlog.git
+cd powerlog/apps && make
+powerlog ./bin/matmul 2048 200
+```
+
 ## Usage
 
 Measure a program. CPU and GPU are both measured by default:
@@ -126,8 +147,8 @@ TOTAL              3099.1755
 EDP (J*s)         38485.5262
 ----------------------------------------------------------------
 Samples                 124
-CPU source              RAPL powercap sysfs, 2 package domain(s)
-GPU source              NVML (nvidia-smi), 1 device(s)
+CPU source              CPU package (RAPL powercap sysfs), 2 package domain(s)
+GPU source              NVIDIA GPU (nvidia-smi / NVML), 1 device(s)
 ================================================================
 ```
 
@@ -151,9 +172,20 @@ powerlog --interval 0.05 ./my_program    # sample every 50 ms
 powerlog --list-backends                 # show detected power sources
 ```
 
-Powerlog exits with the profiled program's exit status. See the
+Powerlog exits with the profiled program's exit status, or `2` for a usage
+error, `127` when the program is not found and `126` when it is not executable.
+The program is resolved before measurement starts, so a typo is reported by
+Powerlog rather than by a wrapper:
+
+```
+$ powerlog matmul 1024 10
+powerlog: error: 'matmul' is not on PATH. It exists in the current directory,
+so run it as './matmul'
+```
+
+See the
 [command line reference](https://powerlog.readthedocs.io/en/latest/cli.html) for
-the full list.
+the full list of options.
 
 Power sources are detected automatically. On a machine with GPUs from more than
 one vendor, NVIDIA is preferred.
@@ -164,28 +196,61 @@ Full documentation is at **[powerlog.readthedocs.io](https://powerlog.readthedoc
 
 - [Installation](https://powerlog.readthedocs.io/en/latest/installation.html)
 - [Quick Start](https://powerlog.readthedocs.io/en/latest/quickstart.html)
+- [Example Applications](https://powerlog.readthedocs.io/en/latest/apps.html)
 - [Command Line Reference](https://powerlog.readthedocs.io/en/latest/cli.html)
-- [Python API Reference](https://powerlog.readthedocs.io/en/latest/api.html)
 - [Backends](https://powerlog.readthedocs.io/en/latest/backends.html)
 - [Methodology](https://powerlog.readthedocs.io/en/latest/methodology.html)
+- [Output Files](https://powerlog.readthedocs.io/en/latest/output.html)
+- [Python API Reference](https://powerlog.readthedocs.io/en/latest/api.html)
+- [Examples](https://powerlog.readthedocs.io/en/latest/examples.html)
+- [Changelog](https://powerlog.readthedocs.io/en/latest/changelog.html)
 
 ## Examples
 
 [`apps/`](apps/) contains ready-to-run GPU programs spanning several performance
-regimes -- `vecadd`, `matmul`, `gemm`, `reduction`, `stencil`, `nbody`, plus SYCL
-ports. See [apps/README.md](apps/README.md) for building and profiling them.
+regimes. They are part of this repository, not of the installed package, so
+clone it and build them with `make`:
 
 ```bash
-cd apps && make
-powerlog ./bin/matmul 2048
+git clone https://github.com/arsho/powerlog.git
+cd powerlog/apps && make
+powerlog ./bin/matmul 2048 200
 ```
+
+Every app takes the same two optional positional arguments,
+`./<app> [size] [iterations]`:
+
+| App | `size` means | Default size | Default iterations | Regime |
+| --- | ------------ | ------------ | ------------------ | ------ |
+| `vecadd` | float elements per vector | `67108864` (2^26) | `200` | Memory bandwidth |
+| `matmul` | dimension `n` of an `n x n` product | `2048` | `50` | Compute |
+| `gemm` | dimension `n` of an `n x n` product | `4096` | `50` | Compute (vendor tuned) |
+| `reduction` | float elements summed | `67108864` (2^26) | `300` | Latency / synchronization |
+| `stencil` | dimension `n` of an `n x n` grid | `4096` | `500` | Memory, iterative |
+| `nbody` | number of bodies | `65536` | `100` | Compute (FMA heavy) |
+| `vecadd_sycl` | float elements per vector | `67108864` (2^26) | `200` | Memory bandwidth |
+| `matmul_sycl` | dimension `n` of an `n x n` product | `2048` | `50` | Compute |
+
+Run them from `apps/`, with the `./bin/` prefix — neither `bin` nor the current
+directory is on `PATH`:
+
+```bash
+powerlog --output results/matmul.csv ./bin/matmul 2048 200
+powerlog --output results/gemm.csv   ./bin/gemm   4096 200
+make run        # profile every app into results/
+```
+
+Details, per-app commands and troubleshooting:
+[apps/README.md](apps/README.md) or
+[Example Applications](https://powerlog.readthedocs.io/en/latest/apps.html) on
+Read the Docs.
 
 [`datalog-engine-comparison/`](datalog-engine-comparison/) is a larger case study
 that uses Powerlog to compare the energy behaviour of five GPU-accelerated
 Datalog engines -- [MNMGDatalog](https://github.com/harp-lab/MNMGDatalog),
 [GPULog](https://github.com/harp-lab/gdlog),
-[BJoin](https://github.com/harp-lab/batch_joins), INLJoin and
-[cuDF](https://github.com/rapidsai/cudf) -- across two recursive queries and
+[BJoin](https://github.com/harp-lab/batch_joins) (release pending), INLJoin and
+[cuDF](https://github.com/NVIDIA/cudf) -- across two recursive queries and
 seven graphs. It ships the harness, the analysis scripts and the collected
 results; the engines themselves are cloned from their own repositories.
 

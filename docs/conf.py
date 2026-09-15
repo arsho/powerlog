@@ -34,9 +34,22 @@ templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 source_suffix = {
-    ".rst": "restructuredtext",
     ".md": "markdown",
+    ".rst": "restructuredtext",
 }
+
+# -- MyST (Markdown) --------------------------------------------------------
+
+# The documentation is written in Markdown; these extensions cover the
+# constructs it uses that plain CommonMark lacks.
+myst_enable_extensions = [
+    "deflist",      # term/definition lists
+    "dollarmath",   # $...$ and $$...$$ maths
+    "colon_fence",  # ::: directive fences, readable inside Markdown
+]
+
+# Give every heading down to <h3> an anchor, so in-page links work.
+myst_heading_anchors = 3
 
 # -- Autodoc ----------------------------------------------------------------
 

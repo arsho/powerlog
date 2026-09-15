@@ -10,7 +10,9 @@ build:
 
 sphinx:
   configuration: docs/conf.py
-  fail_on_warning: false
+  # Warnings are errors: a malformed table or a dead cross-reference otherwise
+  # publishes silently as a broken page.
+  fail_on_warning: true
 
 python:
   install:

@@ -1,8 +1,8 @@
 // vecadd_sycl -- element-wise vector addition in SYCL.
 //
 // The SYCL counterpart of apps/cuda/vecadd.cu. A single binary runs on Intel,
-// NVIDIA and AMD GPUs, so it is handy for cross-vendor energy comparisons with
-// `powerlog --gpu-backend {intel,nvidia,amd}`.
+// NVIDIA and AMD GPUs, so it is handy for cross-vendor energy comparisons:
+// `powerlog ./vecadd_sycl` picks up whichever power source the node exposes.
 //
 // Usage: ./vecadd_sycl [n_elements] [iterations]
 

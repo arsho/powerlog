@@ -24,6 +24,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 
 __all__ = [
     "PowerSampler",
@@ -597,30 +598,55 @@ class PerfRaplCounter(EnergyCounter):
     vendor = "CPU package (RAPL via perf)"
     wraps_command = True
 
+    #: The perf event carrying CPU package energy.
+    EVENT = "power/energy-pkg/"
+
     def __init__(self):
         self._output_path = None
+
+    @classmethod
+    def _probe_energy(cls):
+        """Run a no-op under ``perf`` and return the Joules it reported.
+
+        Returns ``None`` when ``perf`` cannot produce a value, which covers a
+        missing RAPL PMU, ``<not supported>``/``<not counted>`` counters and a
+        restrictive ``kernel.perf_event_paranoid``. Probing for the *value*
+        rather than for the event name matters: several perf versions echo the
+        event name back inside their permission-denied message, so a substring
+        test reports the backend as usable on machines where every measurement
+        would come back empty.
+        """
+        handle, path = tempfile.mkstemp(prefix="powerlog_perf_probe_",
+                                        suffix=".txt")
+        os.close(handle)
+        energy = None
+        try:
+            subprocess.run(
+                ["perf", "stat", "-e", cls.EVENT, "-o", path, "true"],
+                capture_output=True, text=True, timeout=_PROBE_TIMEOUT_S,
+            )
+            energy = parse_perf_energy(path)
+        except (OSError, subprocess.SubprocessError):
+            energy = None
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+        return energy
 
     @classmethod
     def is_available(cls):
         if shutil.which("perf") is None:
             return False
-        # `perf stat true` succeeds only if the RAPL event is readable.
-        try:
-            proc = subprocess.run(
-                ["perf", "stat", "-e", "power/energy-pkg/", "true"],
-                capture_output=True, text=True, timeout=_PROBE_TIMEOUT_S,
-            )
-        except (OSError, subprocess.SubprocessError):
-            return False
-        return "energy-pkg" in proc.stderr and "not supported" not in proc.stderr
+        # Only usable if perf actually hands back a number; see _probe_energy.
+        return cls._probe_energy() is not None
 
     def wrap(self, cmd):
-        import tempfile
-
-        self._output_path = tempfile.NamedTemporaryFile(
-            prefix="powerlog_perf_", suffix=".txt", delete=False
-        ).name
-        return ["perf", "stat", "-e", "power/energy-pkg/",
+        handle, self._output_path = tempfile.mkstemp(
+            prefix="powerlog_perf_", suffix=".txt"
+        )
+        os.close(handle)
+        return ["perf", "stat", "-e", self.EVENT,
                 "-o", self._output_path] + list(cmd)
 
     def read_energy(self):
@@ -638,6 +664,10 @@ class PerfRaplCounter(EnergyCounter):
             pass
         self._output_path = None
         return energy
+
+    def describe(self):
+        # Flagged in the summary so the empty CPU trace is never a surprise.
+        return "CPU package (RAPL via perf, total only)"
 
 
 def cpu_model():
@@ -660,8 +690,38 @@ def cpu_model():
     return platform.processor() or None
 
 
+def _perf_float(raw):
+    """Parse a number printed by ``perf stat``, tolerating either locale.
+
+    ``perf`` formats counters with the caller's locale, so the same value may
+    arrive as ``1,234.56`` or ``1.234,56``. A lone separator followed by exactly
+    three digits is read as a thousands separator, matching the two decimals
+    perf uses for Joules.
+    """
+    raw = raw.strip()
+    if not raw:
+        return None
+    if "," in raw and "." in raw:
+        # The right-most separator is the decimal point.
+        if raw.rfind(".") > raw.rfind(","):
+            raw = raw.replace(",", "")
+        else:
+            raw = raw.replace(".", "").replace(",", ".")
+    elif "," in raw:
+        head, _, tail = raw.rpartition(",")
+        raw = head + tail if len(tail) == 3 else f"{head}.{tail}"
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
 def parse_perf_energy(path):
     """Extract Joules for ``power/energy-pkg/`` from a ``perf stat`` report.
+
+    Handles both the human readable layout and the ``-x`` separated one, and
+    returns ``None`` for the ``<not supported>`` / ``<not counted>`` placeholders
+    perf prints when the counter could not be read.
 
     :param path: Path to the file produced by ``perf stat -o``.
     :returns: Energy in Joules, or ``None`` when the value is not present.
@@ -671,14 +731,16 @@ def parse_perf_energy(path):
             for line in handle:
                 if "energy-pkg" not in line:
                     continue
+                if "<not " in line:  # <not supported>, <not counted>
+                    return None
                 tokens = line.strip().split()
                 for index, token in enumerate(tokens):
-                    if token.lower().startswith("joule"):
-                        raw = tokens[index - 1].replace(",", "")
-                        try:
-                            return float(raw)
-                        except ValueError:
-                            return None
+                    if index and token.lower().startswith("joule"):
+                        return _perf_float(tokens[index - 1])
+                # Separated output, e.g. "12.34,Joules,power/energy-pkg/,...".
+                fields = line.strip().split(",")
+                if len(fields) > 1 and "joule" in fields[1].lower():
+                    return _perf_float(fields[0])
     except OSError:
         pass
     return None
