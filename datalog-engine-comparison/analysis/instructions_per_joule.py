@@ -12,10 +12,26 @@ Workflow (no engine code changes needed):
      ncu prints one row per kernel; this script SUMS them to a per-run total.
   2. Put every ncu csv under a directory (default: logs/ncu/) named
      "<Dataset>_<Engine>.csv"  (e.g. usroads_MNMGDatalog.csv).
-  3. Run:  python instructions_per_joule.py logs/power_tc.csv logs/ncu
+  3. Run it against an energy CSV with ``Dataset``, ``Engine`` and a GPU-energy
+     column, built from the ``results/cpugpu/`` per-run outputs:
 
-It joins total instructions to the existing energy CSV (TotalEnergy(J)) and
-emits a LaTeX table of instructions, energy, and instructions/joule.
+       python instructions_per_joule.py energy_tc.csv logs/ncu/tc
+
+It joins total instructions to the existing energy CSV and emits a LaTeX table
+of instructions, energy, and instructions/joule.
+
+The metric is GPU instructions per **GPU** joule, so the denominator must be GPU
+energy. Beware that two energy CSV layouts are in use and both spell a column
+``TotalEnergy(J)`` while meaning different things:
+
+  * ``power.py`` (GPU only)     -> ``TotalEnergy(J)`` IS the GPU energy.
+  * ``power_cpu_gpu.py``        -> ``GPUEnergy(J)``, ``CPUEnergy(J)`` and
+                                   ``TotalEnergy(J)`` = CPU + GPU.
+
+Taking ``TotalEnergy(J)`` blindly therefore divides GPU work by host+device
+energy on the second layout, understating the metric by 1.5-2.2x at the CPU
+shares we measure. :func:`gpu_energy_column` picks the right column and says
+which one it used.
 
 Instruction count is deterministic for a given (engine, dataset, args), so it is
 valid to combine an ncu run with a separately measured energy run. ncu perturbs
@@ -83,6 +99,30 @@ def collect_instructions(ncu_dir):
     return pd.DataFrame(rows)
 
 
+def gpu_energy_column(columns):
+    """Return the column holding GPU energy, for either energy CSV layout.
+
+    :param columns: Column names of the energy CSV.
+    :returns: The name of the GPU-energy column.
+    :raises ValueError: If the CSV carries CPU energy but no GPU energy column,
+        in which case ``TotalEnergy(J)`` is host+device and there is no way to
+        recover the GPU-only figure.
+    """
+    if "GPUEnergy(J)" in columns:
+        return "GPUEnergy(J)"
+    if "CPUEnergy(J)" in columns:
+        raise ValueError(
+            "energy CSV has CPUEnergy(J) but no GPUEnergy(J): its "
+            "TotalEnergy(J) is CPU+GPU, which cannot be used as the "
+            "denominator for GPU instructions per GPU joule"
+        )
+    if "TotalEnergy(J)" in columns:
+        # Legacy power.py layout: the run was GPU only, so the total is the GPU
+        # energy.
+        return "TotalEnergy(J)"
+    raise ValueError(f"no energy column found in {list(columns)}")
+
+
 def main():
     if len(sys.argv) < 3:
         print("usage: python instructions_per_joule.py <power_csv> <ncu_dir>")
@@ -95,14 +135,17 @@ def main():
         print(f"No ncu CSVs parsed under {ncu_dir}")
         sys.exit(1)
 
+    energy_col = gpu_energy_column(power.columns)
+    print(f"GPU energy taken from column: {energy_col}")
+
     merged = power.merge(inst, on=["Dataset", "Engine"], how="left")
     merged["InstrPerJoule"] = merged.apply(
-        lambda r: r["Instructions"] / r["TotalEnergy(J)"]
-        if pd.notna(r.get("Instructions")) and r["TotalEnergy(J)"] > 0 else float("nan"),
+        lambda r: r["Instructions"] / r[energy_col]
+        if pd.notna(r.get("Instructions")) and r[energy_col] > 0 else float("nan"),
         axis=1,
     )
 
-    cols = ["Dataset", "Engine", "Instructions", "TotalEnergy(J)", "InstrPerJoule"]
+    cols = ["Dataset", "Engine", "Instructions", energy_col, "InstrPerJoule"]
     print(merged[cols].to_string(index=False))
 
     # Auto-scale units: pick G/M/k-instructions per joule for readability.
