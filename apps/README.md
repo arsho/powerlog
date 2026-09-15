@@ -1,169 +1,92 @@
 # Powerlog Example Applications
 
-A set of small, self-contained GPU programs used to exercise and demonstrate
-Powerlog. They span the usual performance regimes (bandwidth bound, compute
-bound, latency bound, iterative) so that the resulting energy profiles differ in
-interesting ways.
+Small, self-contained GPU programs used to exercise Powerlog. They span the
+usual performance regimes, so their energy profiles differ in instructive ways.
 
-Every program takes the same two optional arguments:
+These are **not** installed by `pip install powerlog` — they are C++/CUDA
+sources that must be compiled for your GPU.
+
+Full guide:
+[Example Applications](https://powerlog.readthedocs.io/en/latest/apps.html).
+
+## Build
+
+```bash
+make                  # nvcc if present, else hipcc; binaries land in bin/
+make BACKEND=hip      # force AMD
+make sycl             # SYCL apps (icpx, else clang++ -fsycl)
+make help             # show the detected toolchain
+make clean
+```
+
+`gemm` additionally needs cuBLAS (NVIDIA) or hipBLAS (AMD). The `cuda/` sources
+build unchanged for both vendors: [`cuda/gpu_common.h`](cuda/gpu_common.h) maps
+the CUDA runtime names onto HIP under `hipcc`. On a cluster, load the toolchain
+first (`module load cuda`).
+
+## Parameters
+
+Every program takes the same two positional, optional arguments:
 
 ```
 ./<app> [size] [iterations]
 ```
 
-Increase `iterations` to make a run long enough for stable sampling; a runtime of
-at least a few seconds is recommended at the default 100 ms sampling interval.
+`size` is what the program computes over; `iterations` is how many times the
+kernel is launched, which changes the amount of work but not the result. Both
+are parsed with `strtol`, so anything missing, non-numeric or `<= 0` falls back
+to the default.
 
-## Applications
+| App | `size` means | Default size | Default iters | Regime and kernel |
+| --- | ------------ | ------------ | ------------- | ----------------- |
+| [`vecadd`](cuda/vecadd.cu) | float elements per vector | `67108864` | `200` | Memory bandwidth; element-wise `c = a + b` |
+| [`matmul`](cuda/matmul.cu) | dimension of an `n x n` product | `2048` | `50` | Compute; 16x16 shared-memory tiled multiply |
+| [`gemm`](cuda/gemm.cu) | dimension of an `n x n` product | `4096` | `50` | Compute, vendor tuned; cuBLAS/hipBLAS SGEMM |
+| [`reduction`](cuda/reduction.cu) | float elements summed | `67108864` | `300` | Latency/sync; shared-memory tree sum |
+| [`stencil`](cuda/stencil.cu) | dimension of an `n x n` grid | `4096` | `500` | Memory, iterative; 2D five-point Jacobi |
+| [`nbody`](cuda/nbody.cu) | number of bodies | `65536` | `100` | Compute, FMA heavy; direct O(N^2) gravitation |
+| [`vecadd_sycl`](sycl/vecadd_sycl.cpp) | float elements per vector | `67108864` | `200` | SYCL port of `vecadd` |
+| [`matmul_sycl`](sycl/matmul_sycl.cpp) | dimension of an `n x n` product | `2048` | `50` | SYCL port of `matmul` |
 
-| App            | Source                   | Regime                | Default size | Description |
-| -------------- | ------------------------ | --------------------- | ------------ | ----------- |
-| `vecadd`       | `cuda/vecadd.cu`         | Memory bandwidth      | 2^26 elems   | Element-wise vector addition with a grid-stride loop. |
-| `matmul`       | `cuda/matmul.cu`         | Compute               | 2048x2048    | Tiled dense matrix multiply using shared memory. |
-| `gemm`         | `cuda/gemm.cu`           | Compute (tuned)       | 4096x4096    | Vendor-library SGEMM (cuBLAS / hipBLAS). |
-| `reduction`    | `cuda/reduction.cu`      | Latency / sync        | 2^26 elems   | Shared-memory tree sum reduction. |
-| `stencil`      | `cuda/stencil.cu`        | Memory, iterative     | 4096x4096    | 2D five-point Jacobi heat diffusion. |
-| `nbody`        | `cuda/nbody.cu`          | Compute (FMA heavy)   | 65536 bodies | Direct O(N^2) gravitational N-body step. |
-| `vecadd_sycl`  | `sycl/vecadd_sycl.cpp`   | Memory bandwidth      | 2^26 elems   | SYCL port of `vecadd`. |
-| `matmul_sycl`  | `sycl/matmul_sycl.cpp`   | Compute               | 2048x2048    | SYCL port of `matmul`. |
+## Run
 
-The `cuda/` sources build unchanged for both NVIDIA and AMD: `cuda/gpu_common.h`
-maps the CUDA runtime names onto HIP when compiled with `hipcc`.
-
-## Building
-
-The Makefile picks a backend automatically (`nvcc`, else `hipcc`):
+The generic form, from this directory. The `./bin/` prefix is required --
+neither `bin` nor the current directory is on `PATH`:
 
 ```bash
-cd apps
-make                  # build the CUDA/HIP apps
-make BACKEND=cuda     # force NVIDIA
-make BACKEND=hip      # force AMD
-make sycl             # build the SYCL apps (icpx, else clang++ -fsycl)
-make all              # everything
-make help             # show the detected toolchain
+powerlog ./bin/<app> [size] [iterations]
 ```
 
-Binaries are written to `apps/bin/`. Requirements:
-
-* NVIDIA: CUDA toolkit (`nvcc`); `gemm` also needs cuBLAS.
-* AMD: ROCm (`hipcc`); `gemm` also needs hipBLAS.
-* SYCL: Intel oneAPI (`icpx`) or an `-fsycl` capable `clang++`.
-
-## Running under Powerlog
-
-Powerlog measures CPU and GPU energy by default, so no flags are needed:
+These sizes run for roughly ten seconds on an A100-class GPU, comfortably longer
+than the 100 ms sampling interval. Scale `iterations` for other hardware; the
+built-in defaults are a smoke test, not a measurement.
 
 ```bash
-powerlog ./bin/matmul
+mkdir -p results
+powerlog --output results/vecadd.csv     ./bin/vecadd     67108864 2000
+powerlog --output results/matmul.csv     ./bin/matmul     2048 200
+powerlog --output results/gemm.csv       ./bin/gemm       4096 200
+powerlog --output results/reduction.csv  ./bin/reduction  67108864 2000
+powerlog --output results/stencil.csv    ./bin/stencil    4096 2000
+powerlog --output results/nbody.csv      ./bin/nbody      65536 500
+powerlog --output results/vecadd_sycl.csv ./bin/vecadd_sycl 67108864 2000
+powerlog --output results/matmul_sycl.csv ./bin/matmul_sycl 2048 200
+
+make run        # all of the above at their defaults, into results/
 ```
 
-```
-================================================================
-                    POWERLOG ENERGY SUMMARY
-================================================================
-Command                 ./bin/matmul
-Runtime (s)             12.4180
-CPU                     AMD EPYC 7532 32-Core Processor
-GPU                     NVIDIA A100-PCIE-40GB
-----------------------------------------------------------------
-Domain            Energy (J)   Share (%)   Avg Power (W)
-----------------------------------------------------------------
-CPU                 962.4013       31.06         77.5013
-GPU                2136.7742       68.94        172.0700
-----------------------------------------------------------------
-TOTAL              3099.1755
-EDP (J*s)         38485.5262
-----------------------------------------------------------------
-GPU power (W)           min 61.20 / max 249.80
-CPU power (W)           min 74.90 / max 79.30
-----------------------------------------------------------------
-Samples                 124
-CPU source              RAPL powercap sysfs, 2 package domain(s)
-GPU source              NVML (nvidia-smi), 1 device(s)
-================================================================
-Summary written to: powerlog_output.csv
-Samples written to: powerlog_output_samples.csv
-```
-
-### Common invocations
-
-Choose the output file:
+Two comparisons the set is built for — a hand-written kernel against the vendor
+library, and a size sweep:
 
 ```bash
-powerlog --output matmul_2048.csv ./bin/matmul 2048 50
-```
+powerlog --output results/hand.csv   ./bin/matmul 4096 50
+powerlog --output results/vendor.csv ./bin/gemm   4096 50
 
-Sweep a problem size:
-
-```bash
-for n in 1024 2048 4096; do
-  powerlog --output results/matmul_$n.csv ./bin/matmul $n 50
+for n in 1024 2048 4096 8192; do
+  powerlog --output results/matmul_$n.csv ./bin/matmul $n 200
 done
 ```
 
-Compare a hand-written kernel against the vendor library:
-
-```bash
-powerlog --output results/matmul.csv ./bin/matmul 4096 20
-powerlog --output results/gemm.csv   ./bin/gemm   4096 20
-```
-
-Profile all apps at once:
-
-```bash
-make run        # writes results/<app>.csv and results/<app>_samples.csv
-```
-
-### Multi-GPU
-
-The example apps use a single GPU. On a multi-GPU node, `--gpu N` limits how many
-devices are summed:
-
-```bash
-powerlog --gpu 1 ./bin/nbody 131072 100
-```
-
-### Cross-vendor runs
-
-The power source is detected automatically, so the same command works on NVIDIA,
-AMD and Intel hardware:
-
-```bash
-powerlog ./bin/matmul           # NVML or ROCm SMI, whichever is present
-powerlog ./bin/matmul_sycl      # same, for the SYCL build
-```
-
-Check what is visible on the current machine:
-
-```bash
-powerlog --list-backends
-```
-
-### If CPU energy shows `n/a`
-
-CPU energy comes from RAPL. Grant unprivileged access with either
-
-```bash
-sudo sysctl kernel.perf_event_paranoid=-1     # enables the perf backend
-sudo chmod -R a+r /sys/class/powercap          # enables the sysfs backend
-```
-
-Powerlog still reports GPU energy and runtime when RAPL is unavailable.
-
-## Output files
-
-Each run writes two CSVs:
-
-* `<name>.csv` -- one summary row with the CPU/GPU/total energy breakdown.
-* `<name>_samples.csv` -- the power trace, one row per sampling interval, with a
-  column per GPU device.
-
-The sample trace is convenient for plotting power over time:
-
-```python
-import pandas as pd
-
-df = pd.read_csv("powerlog_output_samples.csv")
-df.plot(x="Elapsed (s)", y=["CPU Power (W)", "GPU Power (W)"])
-```
+If a run misbehaves — `n/a` energy, too few samples, a binary that will not
+launch — see
+[Troubleshooting](https://powerlog.readthedocs.io/en/latest/backends.html#troubleshooting).

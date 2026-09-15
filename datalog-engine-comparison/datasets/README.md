@@ -9,7 +9,7 @@ dataset to its file in each repository.
 | MNMGDatalog, INLJoin | `harp-lab/MNMGDatalog` | packed binary edge list | `data/data_<edges>.bin` |
 | cuDF | `harp-lab/MNMGDatalog` | plain-text edge list | `data/data_<edges>.txt` |
 | GPULog | `harp-lab/gdlog` | Souffle facts | `data/<name>/edge.facts` |
-| BJoin | `harp-lab/batch_joins` | plain-text edge list | `data/<name>.txt` |
+| BJoin | `harp-lab/batch_joins` (release pending) | plain-text edge list | `data/<name>.txt` |
 
 So cloning MNMGDatalog and gdlog gives you every input those four engines need.
 

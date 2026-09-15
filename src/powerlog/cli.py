@@ -89,11 +89,25 @@ def _list_backends():
         print(f"    {backend.name:<12} {backend.vendor}")
     if not gpus:
         print("    (none)")
+        print("    hint: the vendor tool must run standalone, e.g.")
+        print("          nvidia-smi --query-gpu=power.draw "
+              "--format=csv,noheader,nounits")
     print("  CPU:")
     for backend in cpus:
         print(f"    {backend.name:<12} {backend.vendor}")
     if not cpus:
         print("    (none)")
+        print("    hint: enable RAPL with "
+              "'sudo sysctl kernel.perf_event_paranoid=-1'")
+        print("          or 'sudo chmod -R a+r /sys/class/powercap'")
+    elif [backend.name for backend in cpus] == ["perf"]:
+        print("    note: perf reports one total per run and no CPU power "
+              "trace;")
+        print("          make /sys/class/powercap readable for the "
+              "rapl-sysfs backend.")
+    print()
+    print("The first source listed for each domain is the one that will be "
+          "used.")
 
 
 def main(argv=None):
@@ -130,6 +144,14 @@ def main(argv=None):
             cpu_backend=cpu_backend,
             device_count=args.gpu,
         )
+    except FileNotFoundError as exc:
+        # 127 is the conventional "command not found" status.
+        print(f"powerlog: error: {exc}", file=sys.stderr)
+        return 127
+    except PermissionError as exc:
+        # 126 is the conventional "found but not executable" status.
+        print(f"powerlog: error: {exc}", file=sys.stderr)
+        return 126
     except ValueError as exc:
         print(f"powerlog: error: {exc}", file=sys.stderr)
         return 2

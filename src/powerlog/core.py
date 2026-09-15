@@ -7,18 +7,30 @@ CPU and GPU power in lockstep until it exits, returning a
 
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field
 
 from .backends import cpu_model, detect_cpu_backend, detect_gpu_backend
 
-__all__ = ["Sample", "MeasurementResult", "measure_power", "DEFAULT_INTERVAL_S"]
+__all__ = [
+    "Sample",
+    "MeasurementResult",
+    "measure_power",
+    "resolve_program",
+    "DEFAULT_INTERVAL_S",
+]
 
 NS_IN_S = 1_000_000_000
 
 #: Default interval, in seconds, between power samples.
 DEFAULT_INTERVAL_S = 0.1
+
+#: Below this many samples, integrating polled power is dominated by the
+#: sampling grid rather than by the workload, so the result is flagged.
+MIN_RELIABLE_SAMPLES = 10
 
 
 @dataclass
@@ -179,6 +191,42 @@ class MeasurementResult:
         }
 
 
+def resolve_program(program):
+    """Return the absolute path of ``program``, or raise a clear error.
+
+    Checked before the target is launched. When a CPU backend wraps the command
+    (``perf``), an unrunnable program would otherwise be reported by the wrapper
+    rather than by Powerlog -- for example ``perf``'s ``Workload failed: No such
+    file or directory`` followed by exit status 255 -- which hides both the
+    cause and the fact that nothing was measured.
+
+    :param program: The program name or path, i.e. ``command[0]``.
+    :returns: The resolved path to the executable.
+    :raises FileNotFoundError: The program is neither a path nor on ``PATH``.
+    :raises PermissionError: The file exists but is not executable.
+    """
+    resolved = shutil.which(program)
+    if resolved is not None:
+        return resolved
+
+    has_sep = os.sep in program or bool(os.altsep and os.altsep in program)
+    if not has_sep and os.path.isfile(program) and os.access(program, os.X_OK):
+        # A binary in the working directory: PATH does not include "." on POSIX.
+        raise FileNotFoundError(
+            f"{program!r} is not on PATH. It exists in the current directory, "
+            f"so run it as './{program}'"
+        )
+    if os.path.isfile(program):
+        raise PermissionError(
+            f"{program!r} is not executable (try: chmod +x {program})"
+        )
+    if os.path.isdir(program):
+        raise PermissionError(f"{program!r} is a directory, not a program")
+    raise FileNotFoundError(
+        f"{program!r}: no such file or directory, and it is not on PATH"
+    )
+
+
 def measure_power(
     command,
     interval=DEFAULT_INTERVAL_S,
@@ -200,6 +248,8 @@ def measure_power(
     :param device_count: Sample only the first N GPUs (default: all).
     :returns: A :class:`MeasurementResult`.
     :raises ValueError: If ``command`` is empty or a backend name is unknown.
+    :raises FileNotFoundError: If the program cannot be found on ``PATH``.
+    :raises PermissionError: If the program exists but cannot be executed.
 
     .. code-block:: python
 
@@ -211,6 +261,9 @@ def measure_power(
     command = list(command)
     if not command:
         raise ValueError("command must contain at least the program name")
+    # Fail fast and in our own words, before a wrapper such as perf gets to
+    # report the problem in its place.
+    resolve_program(command[0])
 
     gpu = detect_gpu_backend(gpu_backend, device_count=device_count)
     cpu = detect_cpu_backend(cpu_backend)
@@ -333,7 +386,21 @@ def measure_power(
         if cpu.wraps_command:
             cpu_energy_j = cpu.finish()
             if cpu_energy_j is None:
-                result.notes.append("perf did not report a RAPL energy value.")
+                if result.return_code != 0:
+                    result.notes.append(
+                        "perf reported no RAPL energy: the wrapped command "
+                        f"exited with status {result.return_code}, and perf "
+                        "only writes counters for a workload that ran."
+                    )
+                else:
+                    result.notes.append(
+                        "perf reported no RAPL energy. Check that "
+                        "'perf stat -e power/energy-pkg/ sleep 1' prints Joules; "
+                        "if it does not, try "
+                        "'sudo sysctl kernel.perf_event_paranoid=-1' or make "
+                        "/sys/class/powercap readable to use the rapl-sysfs "
+                        "backend instead."
+                    )
         else:
             reading = cpu.read_energy()
             if reading is not None and last_cpu_energy is not None:
@@ -347,5 +414,15 @@ def measure_power(
     if result.total_energy_j is None:
         result.notes.append(
             "No energy domain could be measured; only runtime is reported."
+        )
+    elif gpu is not None and len(result.samples) < MIN_RELIABLE_SAMPLES:
+        # Too few points to integrate: the reading is mostly the idle floor,
+        # and start-up (CUDA context creation, allocation) dominates the run.
+        result.notes.append(
+            f"Only {len(result.samples)} power sample(s) in "
+            f"{result.total_time_s:.2f} s. GPU energy is integrated from too "
+            f"few points to be meaningful, and a run this short is dominated "
+            f"by process start-up rather than by the workload. Increase the "
+            f"workload or lower --interval."
         )
     return result
