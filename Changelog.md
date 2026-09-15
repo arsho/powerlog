@@ -1,6 +1,42 @@
 # Changelog
 
-## 0.1.1
+## 0.1.2 (unreleased)
+
+Clarifies the printed summary and corrects the first CPU power sample. These
+landed after 0.1.1 was published, so they are not in that release.
+
+### Fixed
+- The first CPU power sample was inflated by a few percent. Its energy delta
+  was measured from before the target was launched while its elapsed time was
+  measured from after, so the fork/exec landed in the numerator only; against a
+  synthetic flat 100 W load the first sample read 105.7 W and became the
+  reported maximum. The counter baseline is now taken at t0, alongside the
+  clock.
+
+### Changed
+- The summary's `Runtime (s)` line is now `Total time (s)  (wall clock)`, the
+  same name the CSV uses, and the block states how the two derived figures are
+  obtained: `avg power = energy / total time, EDP = energy x total time`.
+  Neither is sampled, which was not obvious for a domain with no power trace.
+- Trailing column padding is stripped from the summary block.
+- When no domain could be measured, the note now says "only total time is
+  reported", matching the renamed line.
+
+### Documentation
+- A "Reading the summary block" section on the Output page, explaining every
+  line of the printed report, including which figures are measured and which
+  are derived, and how the CPU power trace is differenced out of the RAPL
+  counter.
+- A supported-platforms table in the README: what each domain is read through,
+  what it needs, and what it yields.
+- Methodology described the GPU integral as a left Riemann sum; power is read
+  at the end of each interval, so it is a right Riemann sum.
+- `analysis/instructions_per_joule.py` selects the GPU energy column
+  explicitly. Two energy CSV layouts both spell a column `TotalEnergy(J)`
+  while meaning different things, so the script could silently divide GPU
+  instructions by host+device energy.
+
+## 0.1.1 (2026-09-15)
 
 Follow-up to 0.1.0, fixing a CPU backend that could advertise itself without
 being able to measure, and making the example applications findable and
@@ -22,12 +58,6 @@ runnable from the documentation alone.
   counters are treated as missing rather than as a parse failure.
 - The note printed when `perf` returns no energy now distinguishes a workload
   that failed from a permissions problem, and says what to try.
-- The first CPU power sample was inflated by a few percent. Its energy delta
-  was measured from before the target was launched while its elapsed time was
-  measured from after, so the fork/exec landed in the numerator only; against a
-  synthetic flat 100 W load the first sample read 105.7 W and became the
-  reported maximum. The counter baseline is now taken at t0, alongside the
-  clock.
 
 ### Added
 - `powerlog.resolve_program()`, the pre-flight executable check, is public.
@@ -44,19 +74,8 @@ runnable from the documentation alone.
   each one, and the fact that `pip install powerlog` does not ship them.
 - Troubleshooting is consolidated on the Backends page, which every other page
   now links to instead of repeating it.
-- A "Reading the summary block" section on the Output page, explaining every
-  line of the printed report, including which figures are measured and which
-  are derived, and how the CPU power trace is differenced out of the RAPL
-  counter.
-- A supported-platforms table in the README: what each domain is read through,
-  what it needs, and what it yields.
 
 ### Changed
-- The summary's `Runtime (s)` line is now `Total time (s)  (wall clock)`, the
-  same name the CSV uses, and the block states how the two derived figures are
-  obtained: `avg power = energy / total time, EDP = energy x total time`.
-  Neither is sampled, which was not obvious for a domain with no power trace.
-- Trailing column padding is stripped from the summary block.
 - The `perf` backend describes itself as "total only (no CPU power trace)" in
   the summary.
 - The documentation is now written in Markdown (MyST) throughout, matching this
@@ -71,8 +90,6 @@ runnable from the documentation alone.
   than as a parallel interface shown alongside every command.
 - BJoin is marked "release pending" wherever it is linked, since
   `harp-lab/batch_joins` is not public yet.
-- Methodology described the GPU integral as a left Riemann sum; power is read
-  at the end of each interval, so it is a right Riemann sum.
 
 ## 0.1.0
 
