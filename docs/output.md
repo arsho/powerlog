@@ -22,10 +22,10 @@ could not be measured is `n/a`.
 : Each domain's fraction of `TOTAL`.
 
 `Avg Power (W)`
-: **Derived, not sampled**: the domain's energy divided by total time. For the
-  CPU this is average package power over the run, which includes idle draw and
-  anything else on the socket. It is reported even for a backend that has no
-  power trace, such as `perf`, because it only needs the energy total.
+: The domain's energy divided by total time — computed from those two numbers,
+  never averaged over the trace, so it is reported even by a backend that has no
+  trace at all. For the CPU it is average package power over the run, which
+  includes idle draw and anything else on the socket.
 
 `EDP (J*s)`
 : Energy-delay product, total energy multiplied by total time. It penalises a
@@ -36,17 +36,23 @@ could not be measured is `n/a`.
 
 `GPU power (W)` / `CPU power (W)`
 : The smallest and largest values in the power trace — the same series as the
-  samples CSV. GPU values are read from the vendor tool at each sample; CPU
-  values are the RAPL counter differenced over the interval,
-  `(C_i - C_i-1) / (t_i - t_i-1)`, summed over the package domains.
+  samples CSV, so unlike `Avg Power` these come from sampling.
 
-    Each value is therefore a mean over one sampling interval, so `max` is the
-    highest 100 ms average and not a true instantaneous peak: a short burst is
-    flattened by whatever idles around it. Lower `--interval` to resolve more.
+    There is a CPU trace whenever the CPU backend is `rapl-sysfs`: the counter
+    is read every interval, and each difference gives both energy and a power
+    value, `(C_i - C_i-1) / (t_i - t_i-1)`, summed over the package domains.
+    GPU values are read from the vendor tool at each sample.
 
-    These lines appear only for a domain that was actually traced. With the
-    `perf` CPU backend there is no CPU trace, so the `CPU power` line is absent
-    even though `Avg Power` is still reported.
+    Each value is therefore a mean over one interval, so `max` is the highest
+    100 ms average, not a true instantaneous peak: a short burst is flattened by
+    whatever idles around it. Lower `--interval` to resolve more. The trailing
+    partial interval is counted in the energy totals but is not a sample, so it
+    can nudge `Avg Power` outside the min/max range on a very short run.
+
+    Under the `perf` backend the counter cannot be read mid-run at all — `perf`
+    reports once, at process exit. There is no CPU trace, so the `CPU power`
+    line is omitted entirely rather than shown as `n/a`, and the samples CSV
+    `CPU Power (W)` column is empty.
 
 `Samples`
 : How many times power was polled. Below ten, Powerlog adds a note: the

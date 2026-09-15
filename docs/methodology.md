@@ -28,23 +28,31 @@ $\Delta t_i = t_i - t_{i-1}$ is the measured elapsed time since the previous
 sample — not the nominal `--interval`, so scheduling jitter does not bias the
 integral. A final partial interval is added after the program exits.
 
-For energy counters (RAPL) there is nothing to integrate: energy is the
-difference between the counter at the end and at $t_0$, with wraparound handled
-from the domain's reported maximum range, summed over the package domains.
-
-$$
-E_{\mathrm{cpu}} = C_{\mathrm{end}} - C_{\mathrm{start}}
-$$
-
-The counter is also differenced at every sample, which is where the CPU power
-trace comes from:
+Energy counters need no integration, but `rapl-sysfs` is still read on the same
+interval as the GPU. Each difference is both banked as energy and recorded as a
+power sample, which is the whole CPU trace:
 
 $$
 P^{\mathrm{cpu}}_i = \frac{C_i - C_{i-1}}{t_i - t_{i-1}}
 $$
 
-So a CPU sample is the *mean* power over its interval, not an instantaneous
-reading. Total energy sums only the domains that were actually measured.
+A CPU sample is therefore the *mean* power over its interval, not an
+instantaneous reading. Because those per-interval deltas telescope, the total is
+exactly the counter's end-to-end difference — with wraparound handled from the
+domain's reported maximum range, and the package domains summed:
+
+$$
+E_{\mathrm{cpu}} = \sum_i \left( C_i - C_{i-1} \right)
+                 = C_{\mathrm{end}} - C_{\mathrm{start}}
+$$
+
+`perf` is the exception. It reports once, when the wrapped process exits, so it
+yields that total and no trace at all.
+
+Total energy sums only the domains that were actually measured. The trailing
+partial interval, between the last sample and the program exiting, is added to
+both energy totals but is not recorded as a sample, so it moves the averages
+without appearing in the trace.
 
 Average power is energy divided by wall-clock runtime — the time-weighted mean,
 more robust than the mean of the samples when intervals are uneven. The
