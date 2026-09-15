@@ -15,22 +15,36 @@ so the overhead on the measured program is negligible.
 
 ## Energy computation
 
-For polled power sources, energy is a left Riemann sum over the samples:
+For polled power sources, energy is a right Riemann sum over the samples: power
+is read at the *end* of each interval and applied to the interval that just
+elapsed.
 
 $$
 E_{\mathrm{gpu}} = \sum_{i=1}^{N} P_i \, \Delta t_i
 $$
 
-where $P_i$ is the total power across the selected devices at sample $i$ and
-$\Delta t_i$ the time since the previous sample. For energy counters (RAPL) it
-is the difference between the final and initial values, with wraparound handled
-from the domain's reported maximum range:
+$P_i$ is the total power across the selected devices read at sample $i$, and
+$\Delta t_i = t_i - t_{i-1}$ is the measured elapsed time since the previous
+sample — not the nominal `--interval`, so scheduling jitter does not bias the
+integral. A final partial interval is added after the program exits.
+
+For energy counters (RAPL) there is nothing to integrate: energy is the
+difference between the counter at the end and at $t_0$, with wraparound handled
+from the domain's reported maximum range, summed over the package domains.
 
 $$
 E_{\mathrm{cpu}} = C_{\mathrm{end}} - C_{\mathrm{start}}
 $$
 
-Total energy sums only the domains that were actually measured.
+The counter is also differenced at every sample, which is where the CPU power
+trace comes from:
+
+$$
+P^{\mathrm{cpu}}_i = \frac{C_i - C_{i-1}}{t_i - t_{i-1}}
+$$
+
+So a CPU sample is the *mean* power over its interval, not an instantaneous
+reading. Total energy sums only the domains that were actually measured.
 
 Average power is energy divided by wall-clock runtime — the time-weighted mean,
 more robust than the mean of the samples when intervals are uneven. The

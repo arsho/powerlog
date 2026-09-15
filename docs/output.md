@@ -35,9 +35,18 @@ could not be measured is `n/a`.
   units are only meaningful when comparing runs of the same work.
 
 `GPU power (W)` / `CPU power (W)`
-: Extremes of the *sampled* power, so these lines appear only for a domain that
-  was actually traced. With the `perf` CPU backend there is no CPU trace and
-  the `CPU power` line is absent.
+: The smallest and largest values in the power trace — the same series as the
+  samples CSV. GPU values are read from the vendor tool at each sample; CPU
+  values are the RAPL counter differenced over the interval,
+  `(C_i - C_i-1) / (t_i - t_i-1)`, summed over the package domains.
+
+    Each value is therefore a mean over one sampling interval, so `max` is the
+    highest 100 ms average and not a true instantaneous peak: a short burst is
+    flattened by whatever idles around it. Lower `--interval` to resolve more.
+
+    These lines appear only for a domain that was actually traced. With the
+    `perf` CPU backend there is no CPU trace, so the `CPU power` line is absent
+    even though `Avg Power` is still reported.
 
 `Samples`
 : How many times power was polled. Below ten, Powerlog adds a note: the

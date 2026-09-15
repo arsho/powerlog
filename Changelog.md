@@ -22,6 +22,12 @@ runnable from the documentation alone.
   counters are treated as missing rather than as a parse failure.
 - The note printed when `perf` returns no energy now distinguishes a workload
   that failed from a permissions problem, and says what to try.
+- The first CPU power sample was inflated by a few percent. Its energy delta
+  was measured from before the target was launched while its elapsed time was
+  measured from after, so the fork/exec landed in the numerator only; against a
+  synthetic flat 100 W load the first sample read 105.7 W and became the
+  reported maximum. The counter baseline is now taken at t0, alongside the
+  clock.
 
 ### Added
 - `powerlog.resolve_program()`, the pre-flight executable check, is public.
@@ -40,7 +46,8 @@ runnable from the documentation alone.
   now links to instead of repeating it.
 - A "Reading the summary block" section on the Output page, explaining every
   line of the printed report, including which figures are measured and which
-  are derived.
+  are derived, and how the CPU power trace is differenced out of the RAPL
+  counter.
 - A supported-platforms table in the README: what each domain is read through,
   what it needs, and what it yields.
 
@@ -64,6 +71,8 @@ runnable from the documentation alone.
   than as a parallel interface shown alongside every command.
 - BJoin is marked "release pending" wherever it is linked, since
   `harp-lab/batch_joins` is not public yet.
+- Methodology described the GPU integral as a left Riemann sum; power is read
+  at the end of each interval, so it is a right Riemann sum.
 
 ## 0.1.0
 
