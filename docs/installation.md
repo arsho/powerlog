@@ -25,17 +25,12 @@ The first source listed for each domain is the one that will be used.
 
 If a domain is missing, see {doc}`backends`.
 
-## Hardware requirements
+## What you need
 
-Everything is optional and detected at runtime; install only what matches your
-hardware.
-
-| Domain | Needs |
-| ------ | ----- |
-| NVIDIA GPU | `nvidia-smi` on `PATH` (NVIDIA driver) |
-| AMD GPU | `rocm-smi`/`amd-smi` on `PATH`, else readable `amdgpu` hwmon sysfs |
-| Intel GPU | `xpu-smi` on `PATH` (Intel XPU Manager / oneAPI) |
-| CPU | Linux RAPL: readable `/sys/class/powercap`, or `perf` |
+Nothing beyond the vendor tool you already have: `nvidia-smi`,
+`rocm-smi`/`amd-smi` or `xpu-smi` on `PATH` for the GPU, and a readable
+`/sys/class/powercap` or `perf` for the CPU. Every backend and its requirement
+is listed in {doc}`backends`.
 
 CPU measurement is Linux only. Powerlog measures the node it runs on; it does
 not aggregate across nodes.

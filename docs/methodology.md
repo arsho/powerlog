@@ -15,22 +15,44 @@ so the overhead on the measured program is negligible.
 
 ## Energy computation
 
-For polled power sources, energy is a left Riemann sum over the samples:
+For polled power sources, energy is a right Riemann sum over the samples: power
+is read at the *end* of each interval and applied to the interval that just
+elapsed.
 
 $$
 E_{\mathrm{gpu}} = \sum_{i=1}^{N} P_i \, \Delta t_i
 $$
 
-where $P_i$ is the total power across the selected devices at sample $i$ and
-$\Delta t_i$ the time since the previous sample. For energy counters (RAPL) it
-is the difference between the final and initial values, with wraparound handled
-from the domain's reported maximum range:
+$P_i$ is the total power across the selected devices read at sample $i$, and
+$\Delta t_i = t_i - t_{i-1}$ is the measured elapsed time since the previous
+sample — not the nominal `--interval`, so scheduling jitter does not bias the
+integral. A final partial interval is added after the program exits.
+
+Energy counters need no integration, but `rapl-sysfs` is still read on the same
+interval as the GPU. Each difference is both banked as energy and recorded as a
+power sample, which is the whole CPU trace:
 
 $$
-E_{\mathrm{cpu}} = C_{\mathrm{end}} - C_{\mathrm{start}}
+P^{\mathrm{cpu}}_i = \frac{C_i - C_{i-1}}{t_i - t_{i-1}}
 $$
 
-Total energy sums only the domains that were actually measured.
+A CPU sample is therefore the *mean* power over its interval, not an
+instantaneous reading. Because those per-interval deltas telescope, the total is
+exactly the counter's end-to-end difference — with wraparound handled from the
+domain's reported maximum range, and the package domains summed:
+
+$$
+E_{\mathrm{cpu}} = \sum_i \left( C_i - C_{i-1} \right)
+                 = C_{\mathrm{end}} - C_{\mathrm{start}}
+$$
+
+`perf` is the exception. It reports once, when the wrapped process exits, so it
+yields that total and no trace at all.
+
+Total energy sums only the domains that were actually measured. The trailing
+partial interval, between the last sample and the program exiting, is added to
+both energy totals but is not recorded as a sample, so it moves the averages
+without appearing in the trace.
 
 Average power is energy divided by wall-clock runtime — the time-weighted mean,
 more robust than the mean of the samples when intervals are uneven. The

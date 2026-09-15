@@ -330,6 +330,14 @@ def measure_power(
         cpu.start()
 
     start_ns = last_ns = time.time_ns()
+    if cpu is not None and not cpu.wraps_command:
+        # Re-read at t0. The pre-launch read above only proves the counter is
+        # readable; using it as the baseline would make the first interval's
+        # energy delta span the fork/exec too, while its elapsed time does not,
+        # inflating the first CPU power sample by a few percent.
+        reading = cpu.read_energy()
+        if reading is not None:
+            cpu_start_energy = reading
     last_cpu_energy = cpu_start_energy
 
     while True:
@@ -413,7 +421,7 @@ def measure_power(
 
     if result.total_energy_j is None:
         result.notes.append(
-            "No energy domain could be measured; only runtime is reported."
+            "No energy domain could be measured; only total time is reported."
         )
     elif gpu is not None and len(result.samples) < MIN_RELIABLE_SAMPLES:
         # Too few points to integrate: the reading is mostly the idle floor,

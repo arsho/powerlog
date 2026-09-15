@@ -77,7 +77,11 @@ def format_summary(result, width=64):
     lines = [rule, "POWERLOG ENERGY SUMMARY".center(width), rule]
 
     lines.append(f"{'Command':<24}{' '.join(result.command)}")
-    lines.append(f"{'Runtime (s)':<24}{result.total_time_s:.4f}")
+    # Named as in the CSV, and explicitly wall clock: it covers process
+    # start-up and teardown, not just the compute phase.
+    lines.append(
+        f"{'Total time (s)':<24}{result.total_time_s:.4f}  (wall clock)"
+    )
     # Only surfaced on failure, where it signals the measurement is not valid.
     if result.return_code != 0:
         lines.append(f"{'Exit code':<24}{result.return_code}  (program failed)")
@@ -108,6 +112,12 @@ def format_summary(result, width=64):
     lines.append("-" * width)
     lines.append(f"{'TOTAL':<12}{_num(result.total_energy_j):>16}{'':>12}{'':>16}")
     lines.append(f"{'EDP (J*s)':<12}{_num(result.energy_delay_product):>16}")
+    # Both derived columns are spelled out: neither is sampled directly, and
+    # with a total-only CPU backend there is no power trace to infer them from.
+    if result.total_energy_j is not None:
+        lines.append(
+            "  avg power = energy / total time,  EDP = energy x total time"
+        )
 
     if result.max_gpu_power_w is not None:
         lines.append("-" * width)
@@ -132,7 +142,8 @@ def format_summary(result, width=64):
     for note in result.notes:
         lines.append(f"  note: {note}")
     lines.append(rule)
-    return "\n".join(lines)
+    # Padding is used for column alignment; never leave it at end of line.
+    return "\n".join(line.rstrip() for line in lines)
 
 
 def print_summary(result, stream=None):

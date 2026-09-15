@@ -12,17 +12,18 @@ powerlog ./my_program --arg value
                     POWERLOG ENERGY SUMMARY
 ================================================================
 Command                 ./my_program --arg value
-Runtime (s)             12.4180
+Total time (s)          12.4180  (wall clock)
 CPU                     AMD EPYC 7532 32-Core Processor
 GPU                     NVIDIA A100-PCIE-40GB
 ----------------------------------------------------------------
 Domain            Energy (J)   Share (%)   Avg Power (W)
 ----------------------------------------------------------------
-CPU                 962.4013       31.06         77.5013
-GPU                2136.7742       68.94        172.0700
+CPU                 962.4013       31.05         77.5005
+GPU                2136.7742       68.95        172.0707
 ----------------------------------------------------------------
 TOTAL              3099.1755
-EDP (J*s)         38485.5262
+EDP (J*s)         38485.5614
+  avg power = energy / total time,  EDP = energy x total time
 ----------------------------------------------------------------
 GPU power (W)           min 61.20 / max 249.80
 CPU power (W)           min 74.90 / max 79.30
@@ -35,9 +36,15 @@ Summary written to: powerlog_output.csv
 Samples written to: powerlog_output_samples.csv
 ```
 
+`Total time` is wall clock, so it includes process start-up; average power and
+EDP are derived from it rather than sampled. The `CPU power` and `GPU power`
+lines report the extremes of the *sampled* trace, so they appear only for a
+domain that is traced — with the `perf` CPU backend there is no CPU trace and
+that line is absent. {doc}`output` explains every line, and the two CSVs written
+alongside.
+
 Powerlog exits with the profiled program's exit status, so it composes cleanly
-inside scripts and job submissions. Two CSVs are written alongside the summary;
-see {doc}`output`.
+inside scripts and job submissions.
 
 ## Give the run enough time
 
