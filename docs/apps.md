@@ -102,10 +102,13 @@ If a run misbehaves, see the troubleshooting section of {doc}`backends`.
 
 ## Datalog case study
 
-The repository also carries
-[datalog-engine-comparison/](https://github.com/arsho/powerlog/tree/main/datalog-engine-comparison),
-a larger study using Powerlog to compare five GPU-accelerated Datalog engines
-across two recursive queries and seven graphs, with the harness, analysis
-scripts and collected results. A representative finding: the CPU accounts for
-32–55% of total energy depending on the engine, so GPU-only accounting can
-misrank engines and understate total energy by up to 2x.
+Beyond these micro-benchmarks, the repository carries a larger study that uses
+Powerlog to compare five GPU-accelerated Datalog engines across two recursive
+queries and seven graphs, with the measurement harness, the analysis scripts and
+the collected results. A representative finding: the CPU accounts for 32–55% of
+total energy depending on the engine, so GPU-only accounting can misrank engines
+and understate total energy by up to 2x.
+
+It is not documented here because it is a dataset and a set of shell scripts
+rather than a feature of the tool. Its guide lives with the material, on GitHub:
+[datalog-engine-comparison/README.md](https://github.com/arsho/powerlog/blob/main/datalog-engine-comparison/README.md).

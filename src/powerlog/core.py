@@ -413,7 +413,7 @@ def measure_power(
 
     if result.total_energy_j is None:
         result.notes.append(
-            "No energy domain could be measured; only runtime is reported."
+            "No energy domain could be measured; only total time is reported."
         )
     elif gpu is not None and len(result.samples) < MIN_RELIABLE_SAMPLES:
         # Too few points to integrate: the reading is mostly the idle floor,

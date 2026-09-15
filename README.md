@@ -28,10 +28,35 @@ unmodified program.
 pip install powerlog
 ```
 
-Python 3.8 or newer, no Python dependencies. Power sources are detected at
-runtime: NVIDIA (NVML), AMD (ROCm SMI or `amdgpu` sysfs), Intel (Level Zero) and
-CPU RAPL on Linux. Anything unavailable is reported as `n/a` rather than failing
-the run.
+Python 3.8 or newer, no Python dependencies.
+
+## Supported platforms
+
+Power sources are detected at runtime. Install only what matches your hardware;
+anything unavailable is reported as `n/a` rather than failing the run.
+
+| Domain | Read through | Needs | Gives |
+| ------ | ------------ | ----- | ----- |
+| NVIDIA GPU | NVML | `nvidia-smi` on `PATH` | Per-device power, one column each |
+| AMD GPU | ROCm SMI | `rocm-smi` or `amd-smi` on `PATH` | Per-device power |
+| AMD GPU | `amdgpu` hwmon sysfs | Readable `/sys/class/drm/card*/device/hwmon` | Per-device power, no ROCm needed |
+| Intel GPU | Level Zero | `xpu-smi` on `PATH` | Per-device power |
+| CPU | RAPL powercap | Readable `/sys/class/powercap` | Package energy plus a power trace |
+| CPU | RAPL via `perf` | `perf`, `kernel.perf_event_paranoid <= 0` | Package energy, total only |
+
+```bash
+$ powerlog --list-backends
+Detected power sources:
+  GPU:
+    nvidia       NVIDIA GPU (nvidia-smi / NVML)
+  CPU:
+    rapl-sysfs   CPU package (RAPL powercap sysfs)
+
+The first source listed for each domain is the one that will be used.
+```
+
+CPU measurement is Linux only. Powerlog measures the node it runs on; it does
+not aggregate across nodes.
 
 ## Use
 
@@ -44,17 +69,21 @@ powerlog ./my_program --arg value
                     POWERLOG ENERGY SUMMARY
 ================================================================
 Command                 ./my_program --arg value
-Runtime (s)             12.4180
+Total time (s)          12.4180  (wall clock)
 CPU                     AMD EPYC 7532 32-Core Processor
 GPU                     NVIDIA A100-PCIE-40GB
 ----------------------------------------------------------------
 Domain            Energy (J)   Share (%)   Avg Power (W)
 ----------------------------------------------------------------
-CPU                 962.4013       31.06         77.5013
-GPU                2136.7742       68.94        172.0700
+CPU                 962.4013       31.05         77.5005
+GPU                2136.7742       68.95        172.0707
 ----------------------------------------------------------------
 TOTAL              3099.1755
-EDP (J*s)         38485.5262
+EDP (J*s)         38485.5614
+  avg power = energy / total time,  EDP = energy x total time
+----------------------------------------------------------------
+GPU power (W)           min 61.20 / max 249.80
+CPU power (W)           min 74.90 / max 79.30
 ----------------------------------------------------------------
 Samples                 124
 CPU source              CPU package (RAPL powercap sysfs), 2 package domain(s)
@@ -67,20 +96,9 @@ the measurement covers the whole application — I/O, transfers, kernel launches
 synchronization — not just the kernels. It writes a summary CSV and a power
 trace, and exits with the program's own status.
 
-Check what your machine exposes with `powerlog --list-backends`.
-
 ## Documentation
 
-Everything else is at **[powerlog.readthedocs.io](https://powerlog.readthedocs.io/)**:
-
-[Installation](https://powerlog.readthedocs.io/en/latest/installation.html) ·
-[Quick Start](https://powerlog.readthedocs.io/en/latest/quickstart.html) ·
-[CLI Reference](https://powerlog.readthedocs.io/en/latest/cli.html) ·
-[Example Applications](https://powerlog.readthedocs.io/en/latest/apps.html) ·
-[Backends](https://powerlog.readthedocs.io/en/latest/backends.html) ·
-[Methodology](https://powerlog.readthedocs.io/en/latest/methodology.html) ·
-[Output Files](https://powerlog.readthedocs.io/en/latest/output.html) ·
-[Python API](https://powerlog.readthedocs.io/en/latest/api.html)
+**[powerlog.readthedocs.io](https://powerlog.readthedocs.io/)**
 
 This repository additionally carries two things the wheel does not: example GPU
 programs in [`apps/`](apps/), and

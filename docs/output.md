@@ -1,13 +1,54 @@
-# Output Files
+# Output
 
-Each run writes two CSVs. With `--output run.csv` they are `run.csv` and
-`run_samples.csv`; by default, `powerlog_output.csv` and
-`powerlog_output_samples.csv`. `--no-csv` prints the summary without writing
-anything. Values that could not be measured are written as `n/a`.
+Every run prints a summary block and, unless `--no-csv` is given, writes two
+CSVs. With `--output run.csv` they are `run.csv` and `run_samples.csv`; by
+default, `powerlog_output.csv` and `powerlog_output_samples.csv`. Anything that
+could not be measured is `n/a`.
 
-## Summary file
+## Reading the summary block
 
-One header row and one data row.
+`Total time (s)`
+: Wall clock from launch to exit, the same quantity as `Total Time (s)` in the
+  CSV. It covers the whole process, including CUDA context creation, allocation
+  and teardown — not only the compute phase. Every derived figure below uses
+  it, which is why a run must be long enough for start-up to be negligible.
+
+`Energy (J)`
+: Measured per domain. GPU energy is the integral of the sampled power; CPU
+  energy is the difference of the RAPL counter. `TOTAL` sums only the domains
+  that were actually measured.
+
+`Share (%)`
+: Each domain's fraction of `TOTAL`.
+
+`Avg Power (W)`
+: **Derived, not sampled**: the domain's energy divided by total time. For the
+  CPU this is average package power over the run, which includes idle draw and
+  anything else on the socket. It is reported even for a backend that has no
+  power trace, such as `perf`, because it only needs the energy total.
+
+`EDP (J*s)`
+: Energy-delay product, total energy multiplied by total time. It penalises a
+  slow run regardless of its power draw, exposing the trade-off that energy
+  alone hides: a configuration can lower energy simply by running the hardware
+  at a lower-power but less efficient operating point. Lower is better, and the
+  units are only meaningful when comparing runs of the same work.
+
+`GPU power (W)` / `CPU power (W)`
+: Extremes of the *sampled* power, so these lines appear only for a domain that
+  was actually traced. With the `perf` CPU backend there is no CPU trace and
+  the `CPU power` line is absent.
+
+`Samples`
+: How many times power was polled. Below ten, Powerlog adds a note: the
+  integral then says more about the sampling grid than about the workload.
+
+`CPU source` / `GPU source`
+: Which interface each number came from — worth recording next to results.
+
+## Summary CSV
+
+One header row and one data row. The columns mirror the summary block above.
 
 ```text
 Command,Return Code,Total Time (s),CPU Energy (J),GPU Energy (J),Total Energy (J),...
@@ -47,7 +88,7 @@ Command,Return Code,Total Time (s),CPU Energy (J),GPU Energy (J),Total Energy (J
 `CPU Source`, `GPU Source`
 : Which interface each reading came from.
 
-## Samples file
+## Samples CSV
 
 The power trace, one row per sampling interval.
 

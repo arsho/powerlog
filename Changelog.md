@@ -38,8 +38,18 @@ runnable from the documentation alone.
   each one, and the fact that `pip install powerlog` does not ship them.
 - Troubleshooting is consolidated on the Backends page, which every other page
   now links to instead of repeating it.
+- A "Reading the summary block" section on the Output page, explaining every
+  line of the printed report, including which figures are measured and which
+  are derived.
+- A supported-platforms table in the README: what each domain is read through,
+  what it needs, and what it yields.
 
 ### Changed
+- The summary's `Runtime (s)` line is now `Total time (s)  (wall clock)`, the
+  same name the CSV uses, and the block states how the two derived figures are
+  obtained: `avg power = energy / total time, EDP = energy x total time`.
+  Neither is sampled, which was not obvious for a domain with no power trace.
+- Trailing column padding is stripped from the summary block.
 - The `perf` backend describes itself as "total only (no CPU power trace)" in
   the summary.
 - The documentation is now written in Markdown (MyST) throughout, matching this
