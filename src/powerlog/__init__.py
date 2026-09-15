@@ -12,7 +12,7 @@ power in lockstep until it exits, reporting a per-domain energy breakdown.
           f"(cpu {result.cpu_energy_j:.1f} J, gpu {result.gpu_energy_j:.1f} J)")
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 from .backends import (
     EnergyCounter,
