@@ -36,6 +36,8 @@ runnable from the documentation alone.
   [Example Applications](https://powerlog.readthedocs.io/en/latest/apps.html)
   page covering every app, both of its parameters, the exact command to run
   each one, and the fact that `pip install powerlog` does not ship them.
+- Troubleshooting is consolidated on the Backends page, which every other page
+  now links to instead of repeating it.
 
 ### Changed
 - The `perf` backend describes itself as "total only (no CPU power trace)" in
@@ -43,6 +45,13 @@ runnable from the documentation alone.
 - The documentation is now written in Markdown (MyST) throughout, matching this
   changelog and the repository's other prose; the reStructuredText sources have
   been converted.
+- The documentation is roughly half its previous length: content that was
+  repeated across pages now has a single home, the separate Examples and
+  Citation pages are gone (the case study is covered under Example
+  Applications, the citation stays in the README), and the README is a short
+  pointer to Read the Docs.
+- The Python API is presented as what it is -- a way to script the CLI -- rather
+  than as a parallel interface shown alongside every command.
 - BJoin is marked "release pending" wherever it is linked, since
   `harp-lab/batch_joins` is not public yet.
 

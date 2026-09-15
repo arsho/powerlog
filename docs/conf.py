@@ -51,6 +51,7 @@ myst_enable_extensions = [
 # Give every heading down to <h3> an anchor, so in-page links work.
 myst_heading_anchors = 3
 
+
 # -- Autodoc ----------------------------------------------------------------
 
 autodoc_default_options = {

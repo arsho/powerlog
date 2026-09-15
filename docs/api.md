@@ -1,33 +1,18 @@
 # Python API Reference
 
+Powerlog is primarily a command-line tool. This API exists for scripting a
+measurement from Python — a sweep, a regression test — and mirrors what the
+CLI does.
+
 ```{currentmodule} powerlog
-```
-
-Everything listed here is importable directly from the `powerlog` package.
-
-```{autosummary}
-:nosignatures:
-
-measure_power
-MeasurementResult
-Sample
-resolve_program
-format_summary
-print_summary
-write_summary_csv
-write_samples_csv
-detect_gpu_backend
-detect_cpu_backend
-available_gpu_backends
-available_cpu_backends
-PowerSampler
-EnergyCounter
 ```
 
 ## Measurement
 
 ```{eval-rst}
 .. autofunction:: powerlog.measure_power
+
+.. autofunction:: powerlog.resolve_program
 
 .. autoclass:: powerlog.MeasurementResult
    :members:
@@ -38,8 +23,6 @@ EnergyCounter
    :members:
    :undoc-members:
    :member-order: bysource
-
-.. autofunction:: powerlog.resolve_program
 ```
 
 ## Reporting
