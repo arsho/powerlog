@@ -40,7 +40,7 @@ anything unavailable is reported as `n/a` rather than failing the run.
 | NVIDIA GPU | NVML | `nvidia-smi` on `PATH` | Per-device power, one column each |
 | AMD GPU | ROCm SMI | `rocm-smi` or `amd-smi` on `PATH` | Per-device power |
 | AMD GPU | `amdgpu` hwmon sysfs | Readable `/sys/class/drm/card*/device/hwmon` | Per-device power, no ROCm needed |
-| Intel GPU | Level Zero | `xpu-smi` on `PATH` | Per-device power |
+| Intel GPU | Level Zero | `xpu-smi` or `xpumcli` on `PATH` | Per-device power |
 | CPU | RAPL powercap | Readable `/sys/class/powercap` | Package energy plus a power trace |
 | CPU | RAPL via `perf` | `perf`, `kernel.perf_event_paranoid <= 0` | Package energy, total only |
 
