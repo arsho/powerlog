@@ -214,6 +214,23 @@ struct Sampler {
     return r;
   }
 
+  // nvmlDeviceGetTemperature is deprecated in CUDA 13; use the versioned call
+  // when the header has it.
+  unsigned read_temp() {
+#if defined(nvmlTemperature_v1)
+    nvmlTemperature_t t;
+    std::memset(&t, 0, sizeof(t));
+    t.version = nvmlTemperature_v1;
+    t.sensorType = NVML_TEMPERATURE_GPU;
+    if (nvmlDeviceGetTemperatureV(dev, &t) != NVML_SUCCESS) return 0;
+    return t.temperature > 0 ? (unsigned)t.temperature : 0;
+#else
+    unsigned v = 0;
+    nvmlDeviceGetTemperature(dev, NVML_TEMPERATURE_GPU, &v);
+    return v;
+#endif
+  }
+
   void sample_once() {
     double t = now_s() - t0;
     double p = 0, pm = 0;
@@ -226,7 +243,7 @@ struct Sampler {
     unsigned sm = 0, mem = 0, temp = 0;
     nvmlDeviceGetClockInfo(dev, NVML_CLOCK_SM, &sm);
     nvmlDeviceGetClockInfo(dev, NVML_CLOCK_MEM, &mem);
-    nvmlDeviceGetTemperature(dev, NVML_TEMPERATURE_GPU, &temp);
+    temp = read_temp();
     unsigned long long r = read_reasons();
 
     if (n > 0) {   // right Riemann sum, same convention as powerlog

@@ -53,6 +53,38 @@ __global__ void fma_vecadd(const T *__restrict__ a, const T *__restrict__ b,
   for (; i < n; i += stride) c[i] = fma_element<T>(a[i], b[i], intensity, m, k);
 }
 
+// Copy c back and compare a few elements with a host recomputation.
+template <typename T>
+bool fma_verify(const T *d_c, const std::vector<T> &h_a, const std::vector<T> &h_b,
+                long n, long intensity, T m, T k, const char *name,
+                double &checksum) {
+  CUDA_CHECK(cudaDeviceSynchronize());
+  std::vector<T> h_c(n);
+  CUDA_CHECK(cudaMemcpy(h_c.data(), d_c, (size_t)n * sizeof(T), cudaMemcpyDeviceToHost));
+  std::vector<long> probe;
+  probe.push_back(0);
+  probe.push_back(1 < n ? 1 : 0);
+  probe.push_back(n / 3);
+  probe.push_back(n / 2);
+  probe.push_back(n - 1);
+  const bool integral = std::is_integral<T>::value;
+  bool ok = true;
+  checksum = 0;
+  for (size_t p = 0; p < probe.size(); ++p) {
+    const long i = probe[p];
+    const T ref = fma_element<T>(h_a[i], h_b[i], intensity, m, k);
+    const double got = (double)h_c[i];
+    const double want = (double)ref;
+    checksum += got;
+    const double tol = integral ? 0.0 : 1e-4 * std::fabs(want) + 1e-6;
+    if (!(std::fabs(got - want) <= tol)) {
+      std::fprintf(stderr, "[%s] mismatch at %ld: got %.9g want %.9g\n", name, i, got, want);
+      ok = false;
+    }
+  }
+  return ok;
+}
+
 // Shared main for the FP32 / FP64 / INT32 binaries.
 //   default_intensity: chosen so the kernel is firmly compute bound.
 template <typename T>
@@ -92,24 +124,10 @@ int fma_vecadd_main(int argc, char **argv, const char *name, const char *unit,
   auto launch = [&] {
     fma_vecadd<T><<<blocks, threads>>>(d_a, d_b, d_c, n, intensity, m, k);
   };
+  // Kept as a plain function call: older host GCCs (7.x) hit an internal
+  // compiler error on non-trivial lambdas inside this template.
   auto verify = [&](double &checksum) {
-    CUDA_CHECK(cudaDeviceSynchronize());
-    std::vector<T> h_c(n);
-    CUDA_CHECK(cudaMemcpy(h_c.data(), d_c, bytes, cudaMemcpyDeviceToHost));
-    bool ok = true;
-    const long probe[] = {0, 1, n / 3, n / 2, n - 1};
-    checksum = 0;
-    for (long i : probe) {
-      const T ref = fma_element<T>(h_a[i], h_b[i], intensity, m, k);
-      const double got = (double)h_c[i], want = (double)ref;
-      checksum += got;
-      const double tol = std::is_integral<T>::value ? 0.0 : 1e-4 * std::fabs(want) + 1e-6;
-      if (!(std::fabs(got - want) <= tol)) {
-        std::fprintf(stderr, "[%s] mismatch at %ld: got %.9g want %.9g\n", name, i, got, want);
-        ok = false;
-      }
-    }
-    return ok;
+    return fma_verify<T>(d_c, h_a, h_b, n, intensity, m, k, name, checksum);
   };
 
   const int rc = run_bench(cfg, launch, verify);
