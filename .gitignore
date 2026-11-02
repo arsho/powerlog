@@ -107,6 +107,8 @@ powerlog_output*.csv
 # Example app build artifacts
 apps/bin/
 apps/results/
+dvfs/bin/
+dvfs/results/
 
 # Downloaded datasets (fetch with datasets/fetch_datasets.sh)
 datalog-engine-comparison/datasets/raw/
