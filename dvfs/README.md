@@ -20,6 +20,13 @@ clock-event reasons). It prints a summary and one `CSV,` row.
 ```
 ./bin/<bench> [seconds=20] [intensity] [n_elements]
 env: DVFS_WARMUP=3  DVFS_SAMPLE_MS=20  DVFS_TRACE=trace.csv  DVFS_TAG=label
+     DVFS_RAMP=pre,post   # ramp mode: idle pre s, load, idle post s; reports
+                          # clock/power rise and fall latency (no root needed)
+```
+
+```bash
+DVFS_RAMP=3,3 DVFS_SAMPLE_MS=2 DVFS_TRACE=ramp_fp32.csv ./bin/vecadd_fp32 3
+python3 plot.py ramp_fp32.csv
 ```
 
 ## Build (on the GB300 node)

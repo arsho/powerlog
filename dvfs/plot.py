@@ -2,6 +2,7 @@
 """Plot a sweep.sh CSV: performance, power and efficiency vs. the set point.
 
     python3 plot.py results/clock_<host>_<stamp>.csv [more.csv ...]
+    python3 plot.py ramp.csv            # a DVFS_TRACE file: power/clock vs time
 
 Writes <csv>.pdf next to each input. Needs matplotlib only.
 Values are normalised per benchmark to its best (or default-setting) run so
@@ -22,10 +23,35 @@ def load(path):
         return list(csv.DictReader(f))
 
 
+def plot_trace(path, rows):
+    """Per-sample NVML trace (DVFS_TRACE): power and SM clock vs time."""
+    t = [float(r["t_s"]) for r in rows]
+    fig, ax = plt.subplots(2, 1, figsize=(12, 7), sharex=True)
+    ax[0].plot(t, [float(r["gpu_power_w"]) for r in rows], label="GPU")
+    mod = [float(r["module_power_w"]) for r in rows]
+    if any(mod):
+        ax[0].plot(t, mod, label="module")
+    ax[0].set_ylabel("power (W)")
+    ax[0].legend()
+    ax[0].grid(alpha=0.3)
+    ax[1].plot(t, [float(r["sm_mhz"]) for r in rows], drawstyle="steps-post")
+    ax[1].set_ylabel("SM clock (MHz)")
+    ax[1].set_xlabel("time (s)")
+    ax[1].grid(alpha=0.3)
+    fig.suptitle(path)
+    fig.tight_layout()
+    out = path.rsplit(".", 1)[0] + ".pdf"
+    fig.savefig(out)
+    print(f"wrote {out}")
+
+
 def plot(path):
     rows = load(path)
     if not rows:
         print(f"{path}: empty")
+        return
+    if "t_s" in rows[0]:
+        plot_trace(path, rows)
         return
     mode = rows[0]["mode"]
     series = defaultdict(list)

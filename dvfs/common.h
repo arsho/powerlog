@@ -18,6 +18,9 @@
 //   DVFS_TRACE      path: write the per-sample trace there as CSV
 //   DVFS_TAG        free-form label copied into the CSV row (e.g. "lgc=1500")
 //   DVFS_DEVICE     CUDA device ordinal (default 0)
+//   DVFS_RAMP       "pre,post": ramp mode. Sample from before the first launch,
+//                   idle `pre` s, load for [seconds], idle `post` s, and report
+//                   clock/power rise and fall latencies (see run_ramp).
 
 #ifndef DVFS_COMMON_H
 #define DVFS_COMMON_H
@@ -34,6 +37,7 @@
 #include <cstring>
 #include <string>
 #include <thread>
+#include <vector>
 
 #define CUDA_CHECK(call)                                                       \
   do {                                                                         \
@@ -127,6 +131,11 @@ struct Sampler {
   unsigned long long reasons_or = 0;
   long cnt_pwrcap = 0, cnt_thermal = 0, cnt_hwslow = 0, cnt_clkset = 0;
   unsigned long long e0_mj = 0, e1_mj = 0;
+
+  // Optional in-memory copy of every sample (ramp mode analyses it).
+  struct Sample { double t, p, pm; unsigned sm, mem, temp; unsigned long long r; };
+  bool keep_samples = false;
+  std::vector<Sample> samples;
 
   // static info
   char name[NVML_DEVICE_NAME_BUFFER_SIZE] = "unknown";
@@ -263,6 +272,11 @@ struct Sampler {
     if (r & (REASON_SW_THERMAL | REASON_HW_THERMAL)) ++cnt_thermal;
     if (r & (REASON_HW_SLOWDOWN | REASON_HW_POWER_BRAKE)) ++cnt_hwslow;
     if (r & REASON_CLOCK_SETTING) ++cnt_clkset;
+    if (keep_samples) {
+      Sample x;
+      x.t = t; x.p = p; x.pm = pm; x.sm = sm; x.mem = mem; x.temp = temp; x.r = r;
+      samples.push_back(x);
+    }
     if (trace)
       std::fprintf(trace, "%.4f,%.2f,%.2f,%u,%u,%u,0x%llx\n", t, p, pm, sm,
                    mem, temp, r);
@@ -323,6 +337,97 @@ struct BenchConfig {
   double bytes_per_pass;   // DRAM bytes per kernel launch (compulsory)
 };
 
+// ---------------------------------------------------------------------------
+// Ramp mode (DVFS_RAMP="pre,post"): sampling starts BEFORE the first kernel,
+// the GPU idles `pre` s (CUDA context alive), runs the kernel for `seconds`,
+// then idles `post` s. Reports how fast the clock and power respond to load
+// arriving and leaving. Resolution is limited by DVFS_SAMPLE_MS and by how
+// often the driver refreshes its readings, not just by our polling rate.
+// ---------------------------------------------------------------------------
+template <typename Launch>
+int run_ramp(const BenchConfig &cfg, Launch launch, Sampler &s, double pre,
+             double post, double period) {
+  if (!s.have_dev) {
+    std::fprintf(stderr, "ramp mode needs NVML\n");
+    return 1;
+  }
+  s.keep_samples = true;
+  s.samples.reserve((size_t)((pre + post + cfg.seconds) / period) + 1024);
+  s.start(period, std::getenv("DVFS_TRACE"));
+
+  std::this_thread::sleep_for(std::chrono::duration<double>(pre));
+
+  // Load phase. No warm-up passes: the first launch is the event we time.
+  const double t_on = now_s() - s.t0;
+  const double t_on_abs = now_s();
+  long batch = 1, iters = 0;
+  while (now_s() - t_on_abs < cfg.seconds) {
+    const double b0 = now_s();
+    for (long j = 0; j < batch; ++j) launch();
+    CUDA_CHECK(cudaDeviceSynchronize());
+    iters += batch;
+    const double dt = now_s() - b0;
+    // grow towards ~20 ms per batch so sync gaps stay negligible
+    if (dt < 0.02) batch = std::min(batch * 2, (long)1 << 20);
+  }
+  CUDA_CHECK(cudaGetLastError());
+  const double t_off = now_s() - s.t0;
+
+  std::this_thread::sleep_for(std::chrono::duration<double>(post));
+  s.finish();
+
+  const std::vector<Sampler::Sample> &v = s.samples;
+  // Idle reference: samples in the pre window (skip the first 10%).
+  double idle_p = 0, idle_pm = 0; unsigned idle_sm = 0; long ni = 0;
+  for (size_t i = 0; i < v.size(); ++i)
+    if (v[i].t > 0.1 * t_on && v[i].t < t_on) {
+      idle_p += v[i].p; idle_pm += v[i].pm; idle_sm = v[i].sm; ++ni;
+    }
+  if (ni) { idle_p /= ni; idle_pm /= ni; }
+  // Steady load reference: second half of the load window.
+  double st_p = 0, st_pm = 0; unsigned st_sm = 0; long ns = 0;
+  const double t_mid = t_on + 0.5 * (t_off - t_on);
+  for (size_t i = 0; i < v.size(); ++i)
+    if (v[i].t >= t_mid && v[i].t < t_off) {
+      st_p += v[i].p; st_pm += v[i].pm; st_sm = std::max(st_sm, v[i].sm); ++ns;
+    }
+  if (ns) { st_p /= ns; st_pm /= ns; }
+
+  // First time after t_from a predicate holds; -1 if never.
+  auto first_after = [&](double t_from, int what, double thr, bool above) {
+    for (size_t i = 0; i < v.size(); ++i) {
+      if (v[i].t < t_from) continue;
+      const double x = what == 0 ? (double)v[i].sm : v[i].p;
+      if (above ? x >= thr : x <= thr) return (v[i].t - t_from) * 1000.0;
+    }
+    return -1.0;
+  };
+  const double up_sm = first_after(t_on, 0, 0.98 * st_sm, true);
+  const double up_p = first_after(t_on, 1, idle_p + 0.9 * (st_p - idle_p), true);
+  const double dn_sm = first_after(t_off, 0, idle_sm + 0.1 * (st_sm - (double)idle_sm), false);
+  const double dn_p = first_after(t_off, 1, idle_p + 0.1 * (st_p - idle_p), false);
+
+  // Effective sample spacing actually achieved.
+  const double spacing = v.size() > 1 ? (v.back().t - v.front().t) / (v.size() - 1) * 1000.0 : 0;
+
+  std::printf("================================================================\n");
+  std::printf("[%s ramp] %s  pre=%.1fs load=%.1fs post=%.1fs  samples=%zu (every %.1f ms)\n",
+              cfg.name, s.name, pre, cfg.seconds, post, v.size(), spacing);
+  std::printf("  idle (context alive)  SM %u MHz   GPU %.1f W   module %.1f W\n",
+              idle_sm, idle_p, idle_pm);
+  std::printf("  steady load           SM %u MHz   GPU %.1f W   module %.1f W   (%ld passes)\n",
+              st_sm, st_p, st_pm, iters);
+  std::printf("  load on  at t=%.3f s: SM clock >=98%% after %7.1f ms, GPU power >=90%% after %7.1f ms\n",
+              t_on, up_sm, up_p);
+  std::printf("  load off at t=%.3f s: SM clock back to idle after %7.1f ms, power within 10%% of idle after %7.1f ms\n",
+              t_off, dn_sm, dn_p);
+  std::printf("  (-1 = not observed in the window; latencies are quantised to the sample spacing)\n");
+  if (!std::getenv("DVFS_TRACE"))
+    std::printf("  set DVFS_TRACE=file.csv to keep the full trace\n");
+  if (s.have_dev) nvmlShutdown();
+  return 0;
+}
+
 // launch(): enqueue one pass on the default stream (no sync).
 // verify(checksum&): sync, copy back, return pass/fail and a checksum.
 template <typename Launch, typename Verify>
@@ -335,6 +440,13 @@ int run_bench(const BenchConfig &cfg, Launch launch, Verify verify) {
 
   Sampler s;
   s.init(cuda_dev);
+
+  const char *ramp = std::getenv("DVFS_RAMP");
+  if (ramp && *ramp) {
+    double pre = 2.0, post = 3.0;
+    std::sscanf(ramp, "%lf,%lf", &pre, &post);
+    return run_ramp(cfg, launch, s, pre, post, period);
+  }
 
   // -- warm-up: also measures a single pass to size the launch batches -------
   cudaEvent_t e_a, e_b;
